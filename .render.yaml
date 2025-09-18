@@ -3,10 +3,8 @@ services:
     name: twodpro3
     env: docker
     plan: free
-    region: singapore   # choose closest to Myanmar
-    buildCommand: "dotnet publish -c Release -o out"
-    startCommand: "dotnet out/TwoDPro3.dll"
+    region: singapore
     branch: main
     envVars:
       - key: ConnectionStrings__DefaultConnection
-        sync: false   # value is set in Render Dashboard (not in GitHub)
+        sync: false
