@@ -1,0 +1,6 @@
+@TwoDPro3_HostAddress = http://localhost:5298
+
+GET {{TwoDPro3_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
