@@ -3,16 +3,13 @@
 namespace TwoDPro3.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
-    public class Hello : Controller
+    [Route("test/[controller]")]
+    public class Hello : ControllerBase
     {
         [HttpGet("ping")]
         public IActionResult Ping(string message)
         {
-            if (message == "Hello")
-                return Ok("Hi Buddy");
-            else
-                return Ok("I only reply to Hello :)");
+            return Ok($"Hi Buddy! You said: {message}");
         }
     }
 }
