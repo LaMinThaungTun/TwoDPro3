@@ -1,58 +1,41 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TwoDPro3.Data;   // your DbContext namespace
-using TwoDPro3.Models; // your model namespace
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Linq;
+using TwoDPro3.Models;
+using TwoDPro3.Services;
 
 namespace TwoDPro3.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class NumberSearchController : ControllerBase
     {
-        private readonly CalendarContext _context;
+        private readonly FourWeeksResend _fourWeeksResend;
 
-        public NumberSearchController(CalendarContext context)
+        public NumberSearchController(FourWeeksResend fourWeeksResend)
         {
-            _context = context;
+            _fourWeeksResend = fourWeeksResend;
         }
 
-        // Case 1: Search across all days (both AM + PM)
-        [HttpGet("alldays")]
-        public IActionResult SearchAllDays([FromQuery] string number)
+        /// <summary>
+        /// Search for a number and return the 4-week combination (week-2, week-1, week, week+1).
+        /// Example: api/NumberSearch?number=24&day=Monday&time=AM
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<List<Calendar>>> SearchNumber(
+            [FromQuery] int number,
+            [FromQuery] string day,
+            [FromQuery] string time)
         {
-            var result = _context.Table1
-                .Where(c => c.Am.Contains(number) || c.Pm.Contains(number))
-                .ToList();
+            if (string.IsNullOrEmpty(day) || string.IsNullOrEmpty(time))
+                return BadRequest("Day and Time must be provided.");
 
-            return Ok(result);
-        }
+            var results = await _fourWeeksResend.GetFourWeeksDataAsync(number, day, time);
 
-        // Case 2: Search with day + time filter
-        [HttpGet("daytime")]
-        public IActionResult SearchDayTime([FromQuery] string number, [FromQuery] string day, [FromQuery] string time)
-        {
-            var query = _context.Table1.AsQueryable();
+            if (results == null || results.Count == 0)
+                return NotFound("No matching records found.");
 
-            query = query.Where(c => c.Days == day);
-
-            if (time == "AM")
-            {
-                query = query.Where(c => c.Am.Contains(number));
-            }
-            else if (time == "PM")
-            {
-                query = query.Where(c => c.Pm.Contains(number));
-            }
-            else if (time == "Both")
-            {
-                query = query.Where(c => c.Am.Contains(number) || c.Pm.Contains(number));
-            }
-
-            var result = query.ToList();
-
-            return Ok(result);
+            return Ok(results);
         }
     }
 }
