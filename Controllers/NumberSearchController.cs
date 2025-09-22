@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 
 namespace TwoDPro3.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class NumberSearchController : ControllerBase
     {
         private readonly CalendarContext _context;
@@ -19,71 +19,101 @@ namespace TwoDPro3.Controllers
             _context = context;
         }
 
-        // Map day names to order (Monday = 1, ..., Friday = 5)
+        // ✅ Order for weekdays
         private static readonly Dictionary<string, int> DayOrder = new()
         {
-            {"Monday", 1},
-            {"Tuesday", 2},
-            {"Wednesday", 3},
-            {"Thursday", 4},
-            {"Friday", 5}
+            ["Monday"] = 1,
+            ["Tuesday"] = 2,
+            ["Wednesday"] = 3,
+            ["Thursday"] = 4,
+            ["Friday"] = 5
         };
 
-        [HttpGet("weeksets")]
-        public async Task<IActionResult> SearchWeekSets(
-            [FromQuery] string number,
-            [FromQuery] string day,
-            [FromQuery] bool am = true,
-            [FromQuery] bool pm = true)
+        // 🔹 Endpoint 1: Search across ALL days (AM + PM)
+        [HttpGet("alldays")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string number)
         {
-            if (string.IsNullOrEmpty(number))
-                return BadRequest("Number is required.");
-            if (string.IsNullOrEmpty(day))
-                return BadRequest("Day is required.");
+            var foundRows = await _context.Table1
+                .Where(c => c.Am == number || c.Pm == number)
+                .ToListAsync();
 
-            // Step 1: Get all rows on requested day & time containing the number
-            var dayQuery = _context.Table1.AsQueryable();
-            dayQuery = dayQuery.Where(c => c.Days == day);
-
-            if (am && !pm)
-                dayQuery = dayQuery.Where(c => c.Am.Contains(number));
-            else if (!am && pm)
-                dayQuery = dayQuery.Where(c => c.Pm.Contains(number));
-            else if (am && pm)
-                dayQuery = dayQuery.Where(c => c.Am.Contains(number) || c.Pm.Contains(number));
-            else
-                return BadRequest("At least one of AM or PM must be true.");
-
-            var foundRows = await dayQuery.ToListAsync();
             if (!foundRows.Any())
-                return Ok(new List<List<Calendar>>());
+                return NotFound("No results found.");
 
-            // Step 2: For each found row, fetch all rows of that week
+            var weekSets = await GetFourWeekSetsAsync(foundRows);
+            return Ok(weekSets);
+        }
+
+        // 🔹 Endpoint 2: Search with Day + Time filter
+        [HttpGet("weeksets")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(
+            string number, string day, bool am = false, bool pm = false)
+        {
+            if (!DayOrder.ContainsKey(day))
+                return BadRequest("Invalid day. Use Monday–Friday.");
+
+            IQueryable<Calendar> query = _context.Table1.Where(c => c.Days == day);
+
+            if (am && pm)
+            {
+                query = query.Where(c => c.Am == number || c.Pm == number);
+            }
+            else if (am)
+            {
+                query = query.Where(c => c.Am == number);
+            }
+            else if (pm)
+            {
+                query = query.Where(c => c.Pm == number);
+            }
+            else
+            {
+                return BadRequest("At least one of AM or PM must be true.");
+            }
+
+            var foundRows = await query.ToListAsync();
+
+            if (!foundRows.Any())
+                return NotFound("No results found.");
+
+            var weekSets = await GetFourWeekSetsAsync(foundRows);
+            return Ok(weekSets);
+        }
+
+        // 🔹 Helper: Fetch 4 weeks (two before, current, one after) for each found row
+        private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
+        {
             var weekSets = new List<List<Calendar>>();
-
             var processedWeeks = new HashSet<(int Year, int Week)>();
 
             foreach (var row in foundRows)
             {
-                var weekKey = (row.Years, row.Weeks);
-                if (processedWeeks.Contains(weekKey))
-                    continue;
+                var targetWeeks = new int[] { row.Weeks - 2, row.Weeks - 1, row.Weeks, row.Weeks + 1 };
 
-                processedWeeks.Add(weekKey);
+                foreach (var weekNum in targetWeeks)
+                {
+                    var weekKey = (row.Years, weekNum);
+                    if (processedWeeks.Contains(weekKey))
+                        continue;
 
-                var weekRows = await _context.Table1
-                    .Where(c => c.Years == row.Years && c.Weeks == row.Weeks)
-                    .ToListAsync();
+                    processedWeeks.Add(weekKey);
 
-                // Step 3: Arrange Monday → Friday
-                var sortedWeekRows = weekRows
-                    .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
-                    .ToList();
+                    var weekRows = await _context.Table1
+                        .Where(c => c.Years == row.Years && c.Weeks == weekNum)
+                        .ToListAsync();
 
-                weekSets.Add(sortedWeekRows);
+                    if (weekRows.Any())
+                    {
+                        var ordered = weekRows
+                            .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
+                            .ToList();
+
+                        weekSets.Add(ordered);
+                    }
+                }
             }
 
-            return Ok(weekSets);
+            return weekSets;
         }
     }
 }
