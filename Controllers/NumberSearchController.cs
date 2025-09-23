@@ -29,6 +29,22 @@ namespace TwoDPro3.Controllers
             ["Friday"] = 5
         };
 
+        // 🔹 Weeks per year (adjust as needed or fetch dynamically)
+        private static readonly Dictionary<int, int> WeeksInYear = new()
+        {
+            [2014] = 53,
+            [2015] = 52,
+            [2016] = 52,
+            [2017] = 52,
+            [2018] = 53,
+            [2019] = 52,
+            [2020] = 52,
+            [2021] = 52,
+            [2022] = 52,
+            [2023] = 52,
+            [2024] = 52
+        };
+
         // 🔹 Endpoint 1: Search across ALL days (AM + PM)
         [HttpGet("alldays")]
         public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string number)
@@ -80,6 +96,31 @@ namespace TwoDPro3.Controllers
             return Ok(weekSets);
         }
 
+        // 🔹 Normalize year/week (handles cross-year boundaries)
+        private (int Year, int Week) NormalizeWeek(int year, int week)
+        {
+            // Get how many weeks this year has, fallback to 52
+            int maxWeeks = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
+
+            // If going back before W1 → go to previous year
+            if (week < 1)
+            {
+                int prevYear = year - 1;
+                int prevYearWeeks = WeeksInYear.ContainsKey(prevYear) ? WeeksInYear[prevYear] : 52;
+                return (prevYear, prevYearWeeks + week);
+            }
+
+            // If going beyond last week → go to next year
+            if (week > maxWeeks)
+            {
+                int nextYear = year + 1;
+                int nextYearWeeks = WeeksInYear.ContainsKey(nextYear) ? WeeksInYear[nextYear] : 52;
+                return (nextYear, week - maxWeeks);
+            }
+
+            return (year, week);
+        }
+
         // 🔹 Helper: Fetch 4 weeks (two before, current, one after) for each found row
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
@@ -88,18 +129,21 @@ namespace TwoDPro3.Controllers
 
             foreach (var row in foundRows)
             {
-                var targetWeeks = new int[] { row.Weeks - 2, row.Weeks - 1, row.Weeks, row.Weeks + 1 };
+                // Target weeks: W-2, W-1, W, W+1
+                var targetOffsets = new int[] { -2, -1, 0, 1 };
 
-                foreach (var weekNum in targetWeeks)
+                foreach (var offset in targetOffsets)
                 {
-                    var weekKey = (row.Years, weekNum);
+                    var (normYear, normWeek) = NormalizeWeek(row.Years, row.Weeks + offset);
+
+                    var weekKey = (normYear, normWeek);
                     if (processedWeeks.Contains(weekKey))
                         continue;
 
                     processedWeeks.Add(weekKey);
 
                     var weekRows = await _context.Table1
-                        .Where(c => c.Years == row.Years && c.Weeks == weekNum)
+                        .Where(c => c.Years == normYear && c.Weeks == normWeek)
                         .ToListAsync();
 
                     if (weekRows.Any())
