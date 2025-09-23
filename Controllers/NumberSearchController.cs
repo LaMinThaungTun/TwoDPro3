@@ -125,26 +125,20 @@ namespace TwoDPro3.Controllers
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
-            var processedWeeks = new HashSet<(int Year, int Week)>();
 
             foreach (var row in foundRows)
             {
-                // Always collect exactly 4 weeks for each found row
+                // Always build a 4-week block around each found row
                 var targetOffsets = new int[] { -2, -1, 0, 1 };
 
                 var normalizedWeeks = targetOffsets
                     .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
-                    .Distinct() // avoid duplicates if overlap
                     .ToList();
+
+                var block = new List<Calendar>();
 
                 foreach (var (normYear, normWeek) in normalizedWeeks)
                 {
-                    var weekKey = (normYear, normWeek);
-                    if (processedWeeks.Contains(weekKey))
-                        continue;
-
-                    processedWeeks.Add(weekKey);
-
                     var weekRows = await _context.Table1
                         .Where(c => c.Years == normYear && c.Weeks == normWeek)
                         .ToListAsync();
@@ -155,9 +149,12 @@ namespace TwoDPro3.Controllers
                             .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
                             .ToList();
 
-                        weekSets.Add(ordered);
+                        block.AddRange(ordered);
                     }
                 }
+
+                if (block.Any())
+                    weekSets.Add(block);
             }
 
             return weekSets;
