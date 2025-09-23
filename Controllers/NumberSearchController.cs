@@ -129,13 +129,16 @@ namespace TwoDPro3.Controllers
 
             foreach (var row in foundRows)
             {
-                // Target weeks: W-2, W-1, W, W+1
+                // Always collect exactly 4 weeks for each found row
                 var targetOffsets = new int[] { -2, -1, 0, 1 };
 
-                foreach (var offset in targetOffsets)
-                {
-                    var (normYear, normWeek) = NormalizeWeek(row.Years, row.Weeks + offset);
+                var normalizedWeeks = targetOffsets
+                    .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
+                    .Distinct() // avoid duplicates if overlap
+                    .ToList();
 
+                foreach (var (normYear, normWeek) in normalizedWeeks)
+                {
                     var weekKey = (normYear, normWeek);
                     if (processedWeeks.Contains(weekKey))
                         continue;
