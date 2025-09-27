@@ -3,16 +3,22 @@ using TwoDPro3.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ----------------------
+//  Read connection string
+// Try environment variable first (for deployment), fallback to appsettings.json
+var connectionString = Environment.GetEnvironmentVariable("NEON_CONN_STRING")
+                       ?? builder.Configuration.GetConnectionString("CalendarContext");
+
+// ----------------------
+//  Register DbContext
+builder.Services.AddDbContext<CalendarContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// ----------------------
+//  Standard setup
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// Register DbContext
-builder.Services.AddDbContext<CalendarContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("CalendarContext")));
-
-
-
 
 var app = builder.Build();
 
@@ -23,9 +29,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
