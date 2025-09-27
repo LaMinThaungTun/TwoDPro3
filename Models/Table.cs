@@ -5,9 +5,6 @@ namespace TwoDPro3.Models
     [Table("table1")]   // maps this class to your PostgreSQL table named "table1"
     public class Calendar
     {
-        [Column("id")]   // <-- match PostgreSQL lowercase column
-        public int Id { get; set; }
-
         [Column("years")]
         public int Years { get; set; }
 
@@ -22,5 +19,8 @@ namespace TwoDPro3.Models
 
         [Column("pm")]
         public string? Pm { get; set; }
+
+        [Column("id")]   // <-- match PostgreSQL lowercase column
+        public int Id { get; set; }
     }
 }

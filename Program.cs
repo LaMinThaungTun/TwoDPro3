@@ -9,7 +9,8 @@ builder.Services.AddSwaggerGen();
 
 // Register DbContext
 builder.Services.AddDbContext<CalendarContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("CalendarContext")));
+
 
 
 
