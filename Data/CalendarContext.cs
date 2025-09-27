@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-//using System.Globalization;
-using TwoDPro3.Models;   // so it knows about your Calendar model
+using TwoDPro3.Models;
 
 namespace TwoDPro3.Data
 {
@@ -8,6 +7,6 @@ namespace TwoDPro3.Data
     {
         public CalendarContext(DbContextOptions<CalendarContext> options) : base(options) { }
 
-        public DbSet<Calendar> Table1 { get; set; }  // maps Calendar model to table1
+        public DbSet<Calendar> Table1 { get; set; }  // maps Calendar to table1
     }
 }
