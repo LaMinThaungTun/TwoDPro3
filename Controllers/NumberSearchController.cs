@@ -53,7 +53,7 @@ namespace TwoDPro3.Controllers
         {
             var foundRows = await _context.Table1
                 .Where(c => c.Am == number || c.Pm == number)
-                .OrderBy(c => c.Id)                   // <-- ensure foundRows ordered by Id
+                .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
@@ -91,7 +91,7 @@ namespace TwoDPro3.Controllers
             }
 
             var foundRows = await query
-                .OrderBy(c => c.Id)   // <-- ensure foundRows ordered by Id
+                .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
@@ -125,14 +125,14 @@ namespace TwoDPro3.Controllers
 
         // 🔹 Helper: Fetch 4-week blocks around each found row
         // Ensures:
-        //  - foundRows are processed in ascending Id order,
-        //  - duplicates across overlapping windows are removed,
-        //  - each block is ordered by Id,
-        //  - outer list is ordered by first Id in each block.
+        //  - Each found row generates its own block,
+        //  - Overlapping blocks are allowed,
+        //  - Duplicates removed only inside each block,
+        //  - Each block is ordered by Id,
+        //  - Outer list is ordered by first Id in each block.
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
-            var seenIds = new HashSet<int>(); // avoid duplicates across blocks
 
             foreach (var row in foundRows)
             {
@@ -140,7 +140,7 @@ namespace TwoDPro3.Controllers
                 var targetOffsets = new int[] { -2, -1, 0, 1 };
                 var normalizedWeeks = targetOffsets
                     .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
-                    .Distinct() // avoid exact duplicates
+                    .Distinct()
                     .ToList();
 
                 var block = new List<Calendar>();
@@ -153,7 +153,6 @@ namespace TwoDPro3.Controllers
 
                     if (weekRows.Any())
                     {
-                        // keep day ordering if you want, but ensure deterministic ThenBy Id
                         var ordered = weekRows
                             .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
                             .ThenBy(c => c.Id)
@@ -165,28 +164,22 @@ namespace TwoDPro3.Controllers
 
                 if (block.Any())
                 {
-                    // sort the whole block by Id (small → large)
+                    // sort the whole block by Id
                     var finalOrdered = block
                         .OrderBy(c => c.Id)
                         .ToList();
 
-                    // filter out items already added from previous blocks (to avoid duplicates)
-                    var filtered = finalOrdered
-                        .Where(c => !seenIds.Contains(c.Id))
+                    // remove duplicates inside this block
+                    var uniqueBlock = finalOrdered
+                        .GroupBy(c => c.Id)
+                        .Select(g => g.First())
                         .ToList();
 
-                    if (filtered.Any())
-                    {
-                        // mark these ids as seen
-                        foreach (var item in filtered)
-                            seenIds.Add(item.Id);
-
-                        weekSets.Add(filtered);
-                    }
+                    weekSets.Add(uniqueBlock);
                 }
             }
 
-            // Ensure outer list is ordered by smallest Id in each block (defensive)
+            // Ensure outer list is ordered by smallest Id in each block
             weekSets = weekSets
                 .OrderBy(b => b.Min(c => c.Id))
                 .ToList();
