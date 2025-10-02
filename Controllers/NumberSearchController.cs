@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using TwoDPro3.Data;
 using TwoDPro3.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,7 +20,7 @@ namespace TwoDPro3.Controllers
             _context = context;
         }
 
-        // ✅ Order for weekdays
+        // ✅ Order for weekdays (kept for compatibility if you want day ordering)
         private static readonly Dictionary<string, int> DayOrder = new()
         {
             ["Monday"] = 1,
@@ -29,10 +30,10 @@ namespace TwoDPro3.Controllers
             ["Friday"] = 5
         };
 
-        // 🔹 Weeks per year (adjust as needed or fetch dynamically)
+        // 🔹 Weeks per year (adjust as needed)
         private static readonly Dictionary<int, int> WeeksInYear = new()
         {
-            //[2013] = 53,
+            [2013] = 52,
             [2014] = 53,
             [2015] = 52,
             [2016] = 52,
@@ -52,6 +53,7 @@ namespace TwoDPro3.Controllers
         {
             var foundRows = await _context.Table1
                 .Where(c => c.Am == number || c.Pm == number)
+                .OrderBy(c => c.Id)                   // <-- ensure foundRows ordered by Id
                 .ToListAsync();
 
             if (!foundRows.Any())
@@ -88,7 +90,9 @@ namespace TwoDPro3.Controllers
                 return BadRequest("At least one of AM or PM must be true.");
             }
 
-            var foundRows = await query.ToListAsync();
+            var foundRows = await query
+                .OrderBy(c => c.Id)   // <-- ensure foundRows ordered by Id
+                .ToListAsync();
 
             if (!foundRows.Any())
                 return NotFound("No results found.");
@@ -100,10 +104,8 @@ namespace TwoDPro3.Controllers
         // 🔹 Normalize year/week (handles cross-year boundaries)
         private (int Year, int Week) NormalizeWeek(int year, int week)
         {
-            // Get how many weeks this year has, fallback to 52
             int maxWeeks = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
 
-            // If going back before W1 → go to previous year
             if (week < 1)
             {
                 int prevYear = year - 1;
@@ -111,7 +113,6 @@ namespace TwoDPro3.Controllers
                 return (prevYear, prevYearWeeks + week);
             }
 
-            // If going beyond last week → go to next year
             if (week > maxWeeks)
             {
                 int nextYear = year + 1;
@@ -122,18 +123,24 @@ namespace TwoDPro3.Controllers
             return (year, week);
         }
 
-        // 🔹 Helper: Fetch 4 weeks (two before, current, one after) for each found row
+        // 🔹 Helper: Fetch 4-week blocks around each found row
+        // Ensures:
+        //  - foundRows are processed in ascending Id order,
+        //  - duplicates across overlapping windows are removed,
+        //  - each block is ordered by Id,
+        //  - outer list is ordered by first Id in each block.
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
+            var seenIds = new HashSet<int>(); // avoid duplicates across blocks
 
             foreach (var row in foundRows)
             {
-                // Always build a 4-week block around each found row
+                // Build normalized week tuples for this found row: -2, -1, 0, +1
                 var targetOffsets = new int[] { -2, -1, 0, 1 };
-
                 var normalizedWeeks = targetOffsets
                     .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
+                    .Distinct() // avoid exact duplicates
                     .ToList();
 
                 var block = new List<Calendar>();
@@ -146,8 +153,10 @@ namespace TwoDPro3.Controllers
 
                     if (weekRows.Any())
                     {
+                        // keep day ordering if you want, but ensure deterministic ThenBy Id
                         var ordered = weekRows
                             .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
+                            .ThenBy(c => c.Id)
                             .ToList();
 
                         block.AddRange(ordered);
@@ -155,8 +164,32 @@ namespace TwoDPro3.Controllers
                 }
 
                 if (block.Any())
-                    weekSets.Add(block);
+                {
+                    // sort the whole block by Id (small → large)
+                    var finalOrdered = block
+                        .OrderBy(c => c.Id)
+                        .ToList();
+
+                    // filter out items already added from previous blocks (to avoid duplicates)
+                    var filtered = finalOrdered
+                        .Where(c => !seenIds.Contains(c.Id))
+                        .ToList();
+
+                    if (filtered.Any())
+                    {
+                        // mark these ids as seen
+                        foreach (var item in filtered)
+                            seenIds.Add(item.Id);
+
+                        weekSets.Add(filtered);
+                    }
+                }
             }
+
+            // Ensure outer list is ordered by smallest Id in each block (defensive)
+            weekSets = weekSets
+                .OrderBy(b => b.Min(c => c.Id))
+                .ToList();
 
             return weekSets;
         }
