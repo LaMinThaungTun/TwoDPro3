@@ -32,7 +32,7 @@ namespace TwoDPro3.Controllers
         // 🔹 Weeks per year (adjust as needed or fetch dynamically)
         private static readonly Dictionary<int, int> WeeksInYear = new()
         {
-            [2013] = 52,
+            [2013] = 53,
             [2014] = 53,
             [2015] = 52,
             [2016] = 52,
