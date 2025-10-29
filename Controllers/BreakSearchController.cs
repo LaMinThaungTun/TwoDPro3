@@ -96,7 +96,7 @@ namespace TwoDPro3.Controllers
 
             // Filter for Year = 2025 and matching AMBreak or PMBreak
             var foundRows = await _context.Table1
-                .Where(c => c.Years == 2024 && (c.AmBreak == breakValue || c.PmBreak == breakValue))
+                .Where(c => c.Years == 2025 && (c.AmBreak == breakValue || c.PmBreak == breakValue))
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
@@ -120,9 +120,9 @@ namespace TwoDPro3.Controllers
             if (!am && !pm)
                 return BadRequest("At least one of AM or PM must be true.");
 
-            // Filter rows by day and Year = 2025
+            // Filter rows by day only
             var query = _context.Table1
-                .Where(c => c.Days == day && c.Years == 2024);
+                .Where(c => c.Days == day);
 
             // Filter by AMBreak and PMBreak
             if (am && pm)
