@@ -90,30 +90,29 @@ namespace TwoDPro3.Controllers
         // 🔹 Endpoint 1: Search all days (both AM and PM)
         // Example: GET api/breaksearch/alldaybreak?breakValue=1
         [HttpGet("alldaybreak")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDayBreak(string breakValue, int page = 1, int pageSize = 10)
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDayBreak(string breakValue)
         {
-            var chunk = await _context.Table1
-                .Where(c => c.AmBreak == breakValue || c.PmBreak == breakValue)
+            
+
+            // Filter for Year = 2025 and matching AMBreak or PMBreak
+            var foundRows = await _context.Table1
+                .Where(c => c.Years == 2024 && (c.AmBreak == breakValue || c.PmBreak == breakValue))
                 .OrderBy(c => c.Id)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
                 .ToListAsync();
 
-            if (!chunk.Any())
+            if (!foundRows.Any())
                 return NotFound("No results found.");
 
-            var weekSets = await GetFourWeekSetsAsync(chunk);
+            var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
         }
 
         // 🔹 Endpoint 2: Search by Day + Time (AM/PM)
         // Example: GET api/breaksearch/weeksetsbreak?breakValue=1&day=Tuesday&am=true&pm=false
         [HttpGet("weeksetsbreak")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSetsBreak(
-            int breakValue, string day, bool am = false, bool pm = false)
+        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSetsBreak(string breakValue, string day, bool am = false, bool pm = false)
         {
-            if (breakValue < 0 || breakValue > 9)
-                return BadRequest("Break value must be between 0 and 9.");
+            
 
             if (!DayOrder.ContainsKey(day))
                 return BadRequest("Invalid day. Use Monday–Friday.");
@@ -121,18 +120,21 @@ namespace TwoDPro3.Controllers
             if (!am && !pm)
                 return BadRequest("At least one of AM or PM must be true.");
 
-            var allRows = await _context.Table1
-                .Where(c => c.Days == day)
-                .ToListAsync();
+            // Filter rows by day and Year = 2025
+            var query = _context.Table1
+                .Where(c => c.Days == day && c.Years == 2024);
 
-            var foundRows = allRows.Where(c =>
-            {
-                bool amMatch = am && GetBreakValue(c.Am) == breakValue;
-                bool pmMatch = pm && GetBreakValue(c.Pm) == breakValue;
-                return amMatch || pmMatch;
-            })
-            .OrderBy(c => c.Id)
-            .ToList();
+            // Filter by AMBreak and PMBreak
+            if (am && pm)
+                query = query.Where(c => c.AmBreak == breakValue || c.PmBreak == breakValue);
+            else if (am)
+                query = query.Where(c => c.AmBreak == breakValue);
+            else if (pm)
+                query = query.Where(c => c.PmBreak == breakValue);
+
+            var foundRows = await query
+                .OrderBy(c => c.Id)
+                .ToListAsync();
 
             if (!foundRows.Any())
                 return NotFound("No results found.");
