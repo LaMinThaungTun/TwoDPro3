@@ -1,11 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
-using TwoDPro3.Data;
-using TwoDPro3.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TwoDPro3.Data;
+using TwoDPro3.Models;
 
 namespace TwoDPro3.Controllers
 {
@@ -89,24 +90,19 @@ namespace TwoDPro3.Controllers
         // 🔹 Endpoint 1: Search all days (both AM and PM)
         // Example: GET api/breaksearch/alldaybreak?breakValue=1
         [HttpGet("alldaybreak")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDayBreak(int breakValue)
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDayBreak(string breakValue, int page = 1, int pageSize = 50)
         {
-            if (breakValue < 0 || breakValue > 9)
-                return BadRequest("Break value must be between 0 and 9.");
-
-            var allRows = await _context.Table1.ToListAsync();
-
-            var foundRows = allRows
-                .Where(c =>
-                    GetBreakValue(c.Am) == breakValue ||
-                    GetBreakValue(c.Pm) == breakValue)
+            var chunk = await _context.Table1
+                .Where(c => c.AmBreak == breakValue || c.PmBreak == breakValue)
                 .OrderBy(c => c.Id)
-                .ToList();
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
-            if (!foundRows.Any())
+            if (!chunk.Any())
                 return NotFound("No results found.");
 
-            var weekSets = await GetFourWeekSetsAsync(foundRows);
+            var weekSets = await GetFourWeekSetsAsync(chunk);
             return Ok(weekSets);
         }
 

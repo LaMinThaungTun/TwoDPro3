@@ -20,7 +20,26 @@ namespace TwoDPro3.Models
         [Column("pm")]
         public string? Pm { get; set; }
 
-        [Column("id")]   // <-- match PostgreSQL lowercase column
+        [Column("id")]   
         public int Id { get; set; }
+
+        [Column("ambreak")]
+        public string? AmBreak { get; set; }
+
+        [Column("pmbreak")]
+        public string? PmBreak { get; set; }
+
+        [Column("amdgone")]
+        public string? AmDgOne { get; set; }
+
+        [Column("amdgtwo")]
+        public string? AmDgTwo { get; set; }
+
+        [Column("pmdgone")]
+        public string? PmDgOne { get; set; }
+
+        [Column("pmdgtwo")]
+        public string? PmDgTwo { get; set; }
+
     }
 }
