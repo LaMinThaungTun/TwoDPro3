@@ -90,7 +90,7 @@ namespace TwoDPro3.Controllers
         // 🔹 Endpoint 1: Search all days (both AM and PM)
         // Example: GET api/breaksearch/alldaybreak?breakValue=1
         [HttpGet("alldaybreak")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDayBreak(string breakValue, int page = 1, int pageSize = 50)
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDayBreak(string breakValue, int page = 1, int pageSize = 10)
         {
             var chunk = await _context.Table1
                 .Where(c => c.AmBreak == breakValue || c.PmBreak == breakValue)
