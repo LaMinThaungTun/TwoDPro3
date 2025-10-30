@@ -96,7 +96,7 @@ namespace TwoDPro3.Controllers
 
             // Filter for Year = 2025 and matching AMBreak or PMBreak
             var foundRows = await _context.Table1
-                .Where(c => c.Years == 2025 && (c.AmBreak == breakValue || c.PmBreak == breakValue))
+                .Where(c => (c.AmBreak == breakValue || c.PmBreak == breakValue) && c.Years == 2025)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
