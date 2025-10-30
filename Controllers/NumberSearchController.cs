@@ -133,12 +133,22 @@ namespace TwoDPro3.Controllers
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
+            var processedWeeks = new HashSet<(int year, int week)>(); // track processed base weeks
 
             foreach (var row in foundRows)
             {
-                // Build normalized week tuples for this found row: -2, -1, 0, +1
-                var targetOffsets = new int[] { -2, -1, 0, 1 };
-                var normalizedWeeks = targetOffsets
+                // Skip if we've already processed this base week (year + week combination)
+                var baseKey = (row.Years, row.Weeks);
+                if (processedWeeks.Contains(baseKey))
+                    continue;
+
+                processedWeeks.Add(baseKey);
+
+                // Define offsets for 4-week block
+                var offsets = new int[] { -2, -1, 0, 1 };
+
+                // Normalize and collect week-year pairs for this block
+                var normalizedWeeks = offsets
                     .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
                     .Distinct()
                     .ToList();
@@ -164,22 +174,18 @@ namespace TwoDPro3.Controllers
 
                 if (block.Any())
                 {
-                    // sort the whole block by Id
-                    var finalOrdered = block
-                        .OrderBy(c => c.Id)
-                        .ToList();
-
-                    // remove duplicates inside this block
-                    var uniqueBlock = finalOrdered
+                    // Remove duplicates within this block (in case of data overlaps)
+                    var uniqueBlock = block
                         .GroupBy(c => c.Id)
                         .Select(g => g.First())
+                        .OrderBy(c => c.Id)
                         .ToList();
 
                     weekSets.Add(uniqueBlock);
                 }
             }
 
-            // Ensure outer list is ordered by smallest Id in each block
+            // Sort final list by the earliest record in each block
             weekSets = weekSets
                 .OrderBy(b => b.Min(c => c.Id))
                 .ToList();
