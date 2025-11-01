@@ -103,64 +103,70 @@ namespace TwoDPro3.Controllers
                 return (year, week);
             }
 
-            // Helper: Fetch 4-week blocks around each found row
-            private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
+        // Helper: Fetch 4-week blocks around each found row
+        private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
+        {
+            var weekSets = new List<List<Calendar>>();
+            var processedWeeks = new HashSet<(int year, int week)>(); // track processed base weeks
+
+            foreach (var row in foundRows)
             {
-                var weekSets = new List<List<Calendar>>();
+                // Skip if we've already processed this base week (year + week combination)
+                var baseKey = (row.Years, row.Weeks);
+                if (processedWeeks.Contains(baseKey))
+                    continue;
 
-                foreach (var row in foundRows)
-                {
-                    // Build normalized week tuples for this found row: -2, -1, 0, +1
-                    var targetOffsets = new int[] { -2, -1, 0, 1 };
-                    var normalizedWeeks = targetOffsets
-                        .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
-                        .Distinct()
-                        .ToList();
+                processedWeeks.Add(baseKey);
 
-                    var block = new List<Calendar>();
+                // Define offsets for 4-week block
+                var offsets = new int[] { -2, -1, 0, 1 };
 
-                    foreach (var (normYear, normWeek) in normalizedWeeks)
-                    {
-                        var weekRows = await _context.Table1
-                            .Where(c => c.Years == normYear && c.Weeks == normWeek)
-                            .ToListAsync();
-
-                        if (weekRows.Any())
-                        {
-                            var ordered = weekRows
-                                .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
-                                .ThenBy(c => c.Id)
-                                .ToList();
-
-                            block.AddRange(ordered);
-                        }
-                    }
-
-                    if (block.Any())
-                    {
-                        // sort the whole block by Id
-                        var finalOrdered = block
-                            .OrderBy(c => c.Id)
-                            .ToList();
-
-                        // remove duplicates inside this block
-                        var uniqueBlock = finalOrdered
-                            .GroupBy(c => c.Id)
-                            .Select(g => g.First())
-                            .ToList();
-
-                        weekSets.Add(uniqueBlock);
-                    }
-                }
-                // Ensure outer list is ordered by smallest Id in each block
-                weekSets = weekSets
-                    .OrderBy(b => b.Min(c => c.Id))
+                // Normalize and collect week-year pairs for this block
+                var normalizedWeeks = offsets
+                    .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
+                    .Distinct()
                     .ToList();
 
-                return weekSets;
+                var block = new List<Calendar>();
 
+                foreach (var (normYear, normWeek) in normalizedWeeks)
+                {
+                    var weekRows = await _context.Table1
+                        .Where(c => c.Years == normYear && c.Weeks == normWeek)
+                        .ToListAsync();
+
+                    if (weekRows.Any())
+                    {
+                        var ordered = weekRows
+                            .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
+                            .ThenBy(c => c.Id)
+                            .ToList();
+
+                        block.AddRange(ordered);
+                    }
+                }
+
+                if (block.Any())
+                {
+                    // Remove duplicates within this block (in case of data overlaps)
+                    var uniqueBlock = block
+                        .GroupBy(c => c.Id)
+                        .Select(g => g.First())
+                        .OrderBy(c => c.Id)
+                        .ToList();
+
+                    weekSets.Add(uniqueBlock);
+                }
             }
-    
+
+            // Sort final list by the earliest record in each block
+            weekSets = weekSets
+                .OrderBy(b => b.Min(c => c.Id))
+                .ToList();
+
+            return weekSets;
+        }
+
     }
    
 }
