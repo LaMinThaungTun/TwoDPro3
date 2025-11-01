@@ -107,21 +107,23 @@ namespace TwoDPro3.Controllers
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
-            var processedWeeks = new HashSet<int>(); // ✅ only track week numbers (since all are 2025)
+            var processedWeeks = new HashSet<(int year, int week)>(); // track processed base weeks
 
             foreach (var row in foundRows)
             {
-                // Skip if we've already processed this base week
-                if (processedWeeks.Contains(row.Weeks))
+                // Skip if we've already processed this base week (year + week combination)
+                var baseKey = (row.Years, row.Weeks);
+                if (processedWeeks.Contains(baseKey))
                     continue;
 
-                processedWeeks.Add(row.Weeks);
+                processedWeeks.Add(baseKey);
 
+                // Define offsets for 4-week block
                 var offsets = new int[] { -2, -1, 0, 1 };
 
+                // Normalize and collect week-year pairs for this block
                 var normalizedWeeks = offsets
                     .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
-                    .Where(w => w.Year == 2025) // ✅ limit blocks to 2025 only
                     .Distinct()
                     .ToList();
 
@@ -146,6 +148,7 @@ namespace TwoDPro3.Controllers
 
                 if (block.Any())
                 {
+                    // Remove duplicates within this block (in case of data overlaps)
                     var uniqueBlock = block
                         .GroupBy(c => c.Id)
                         .Select(g => g.First())
@@ -156,6 +159,7 @@ namespace TwoDPro3.Controllers
                 }
             }
 
+            // Sort final list by the earliest record in each block
             weekSets = weekSets
                 .OrderBy(b => b.Min(c => c.Id))
                 .ToList();
