@@ -5,22 +5,23 @@ using TwoDPro3.Models;
 
 namespace TwoDPro3.Controllers
 {
+    
     [ApiController]
     [Route("api/[controller]")]
 
-    public class DoubleSearchController : Controller
+    public class PowerSearchController : Controller
     {
+        
         private readonly CalendarContext _context;
-
-        public DoubleSearchController(CalendarContext context)
+        public PowerSearchController(CalendarContext context)
         {
             _context = context;
         }
 
-        // List of DOUBLE numbers
-        private static readonly List<string> DoubleNumbers = new()
+        // List of Power numbers
+        private static readonly List<string> PowerNumbers = new()
         {
-            "00","11","22","33","44","55","66","77","88","99"
+            "05","16","27","38","49","50","61","72","83","94"
         };
 
         // Order for weekdays
@@ -47,24 +48,25 @@ namespace TwoDPro3.Controllers
             [2021] = 52,
             [2022] = 52,
             [2023] = 52,
-            [2024] = 52
+            [2024] = 52,
+            [2025] = 53
         };
 
         // ==========================================================
         // 1) ALL DAYS SEARCH
-        // GET api/DoubleSearch/alldaysdouble?double=double
+        // GET api/PowerSearch/alldaysdouble?pwr=power
         // ==========================================================
-        [HttpGet("alldaysdouble")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string dbl)
+        [HttpGet("alldayspower")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string pwr)
         {
-            if (dbl != "double")
-                return BadRequest("Parameter must be 'double'.");
+            if (pwr != "power")
+                return BadRequest("Parameter must be 'power'.");
 
             var foundRows = await _context.Table1
                 .Where(c =>
-                    (DoubleNumbers.Contains(c.Am) ||
-                     DoubleNumbers.Contains(c.Pm))
-                    && c.Years == 2025)
+                    (PowerNumbers.Contains(c.Am) ||
+                     PowerNumbers.Contains(c.Pm))
+                    && (c.Years == 2025 || c.Years == 2026))
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
@@ -77,36 +79,37 @@ namespace TwoDPro3.Controllers
 
         // ==========================================================
         // 2) WEEKSETS SEARCH
-        // GET api/DoubleSearch/weeksetsdouble?double=double&day=Monday&am=true
+        // GET api/DoubleSearch/weeksetspower?power=power&day=Monday&am=true
         // ==========================================================
-        [HttpGet("weeksetsdouble")]
+        [HttpGet("weeksetspower")]
         public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(
-            string dbl, string day, bool am = false, bool pm = false)
+            string pwr, string day, bool am = false, bool pm = false)
         {
-            if (dbl != "double")
-                return BadRequest("Parameter must be 'double'.");
-
+            if (pwr != "power")
+                return BadRequest("Parameter must be 'power'.");
             if (!DayOrder.ContainsKey(day))
                 return BadRequest("Invalid day. Use Monday–Friday.");
-
             IQueryable<Calendar> query = _context.Table1.Where(c => c.Days == day);
 
             if (am && pm)
             {
                 query = query.Where(c =>
-                    DoubleNumbers.Contains(c.Am) ||
-                    DoubleNumbers.Contains(c.Pm));
+                    PowerNumbers.Contains(c.Am) ||
+                    PowerNumbers.Contains(c.Pm));
             }
+
             else if (am)
             {
                 query = query.Where(c =>
-                    DoubleNumbers.Contains(c.Am));
+                    PowerNumbers.Contains(c.Am));
             }
+
             else if (pm)
             {
                 query = query.Where(c =>
-                    DoubleNumbers.Contains(c.Pm));
+                    PowerNumbers.Contains(c.Pm));
             }
+
             else
             {
                 return BadRequest("Either AM or PM must be true.");
@@ -115,10 +118,11 @@ namespace TwoDPro3.Controllers
             var foundRows = await query.OrderBy(c => c.Id).ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No double numbers found.");
+                return NotFound("No power numbers found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
+
         }
 
         // ==========================================================
@@ -127,7 +131,6 @@ namespace TwoDPro3.Controllers
         private (int Year, int Week) NormalizeWeek(int year, int week)
         {
             int maxWeeks = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
-
             if (week < 1)
             {
                 int prevYear = year - 1;
@@ -143,6 +146,7 @@ namespace TwoDPro3.Controllers
 
             return (year, week);
         }
+
 
         // ==========================================================
         // FOUR-WEEK BLOCK BUILDER

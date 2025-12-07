@@ -20,7 +20,7 @@ namespace TwoDPro3.Controllers
             _context = context;
         }
 
-        // ✅ Order for weekdays (kept for compatibility if you want day ordering)
+        // Order for weekdays (kept for compatibility if you want day ordering)
         private static readonly Dictionary<string, int> DayOrder = new()
         {
             ["Monday"] = 1,
@@ -30,7 +30,7 @@ namespace TwoDPro3.Controllers
             ["Friday"] = 5
         };
 
-        // 🔹 Weeks per year (adjust as needed)
+        // Weeks per year (adjust as needed)
         private static readonly Dictionary<int, int> WeeksInYear = new()
         {
             [2013] = 52,

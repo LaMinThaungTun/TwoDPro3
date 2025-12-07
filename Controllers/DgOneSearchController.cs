@@ -25,7 +25,8 @@ namespace TwoDPro3.Controllers
             private static readonly Dictionary<int, int> WeeksInYear = new()
             {
                 [2013] = 52, [2014] = 53, [2015] = 52, [2016] = 52, [2017] = 52, [2018] = 53,
-                [2019] = 52, [2020] = 52, [2021] = 52, [2022] = 52, [2023] = 52, [2024] = 52
+                [2019] = 52, [2020] = 52, [2021] = 52, [2022] = 52, [2023] = 52, [2024] = 52,
+                [2025] = 53
             };
 
         //Endpoint 1: Search across ALL days (AM + PM)
@@ -34,7 +35,7 @@ namespace TwoDPro3.Controllers
             public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string number)
             {
                 var foundRows = await _context.Table1
-                    .Where(c => (c.AmDgOne == number || c.PmDgOne == number) && c.Years == 2025)
+                    .Where(c => (c.AmDgOne == number || c.PmDgOne == number) && (c.Years == 2025 || c.Years == 2026))
                     .OrderBy(c => c.Id)
                     .ToListAsync();
                 if (!foundRows.Any())
