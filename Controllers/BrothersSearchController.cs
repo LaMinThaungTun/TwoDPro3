@@ -3,26 +3,24 @@ using Microsoft.EntityFrameworkCore;
 using TwoDPro3.Data;
 using TwoDPro3.Models;
 
-
 namespace TwoDPro3.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class NatsatSearchController : Controller
+    public class BrothersSearchController : Controller
     {
         private readonly CalendarContext _context;
 
-        public NatsatSearchController(CalendarContext context)
+        public BrothersSearchController(CalendarContext context)
         {
             _context = context;
         }
-
-        // List of Natsat numbers
-        private static readonly List<string> NatsatNumbers = new()
+        // List of Brothers numbers
+        private static readonly List<string> BrothersNumbers = new()
         {
-            "07","18","24","35","42","53","69","70","81","96"
+            "01","12","23","34","45","56","67","78","89","90",
+            "10","21","32","43","54","65","76","87","98","09"
         };
-
         // Order for weekdays (kept for compatibility if you want day ordering)
         private static readonly Dictionary<string, int> DayOrder = new()
         {
@@ -53,40 +51,39 @@ namespace TwoDPro3.Controllers
 
         // ==========================================================
         // 1) ALL DAYS SEARCH
-        // GET api/NatsatSearch/alldaysnatsat?nst=natsat
+        // GET api/NatsatSearch/alldaysbrotherst?btr=brothers
         // ==========================================================
-        [HttpGet("alldaysnatsat")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string nst)
+        [HttpGet("alldaysbrothers")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string btr)
         {
-            if (nst != "natsat")
-                return BadRequest("Parameter must be 'natsat'.");
+            if (btr != "brothers")
+                return BadRequest("Parameter must be 'tnatsat'.");
 
             var foundRows = await _context.Table1
                 .Where(c =>
-                    (NatsatNumbers.Contains(c.Am) ||
-                     NatsatNumbers.Contains(c.Pm))
+                    (BrothersNumbers.Contains(c.Am) ||
+                     BrothersNumbers.Contains(c.Pm))
                     && (c.Years == 2025 || c.Years == 2026))
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No double numbers found.");
+                return NotFound("No Brothers numbers found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
-
         }
 
         // ==========================================================
         // 2) WEEKSETS SEARCH
-        // GET api/NatsatSearch/weeksetsnatsat?nst=natsat&day=Monday&am=true
+        // GET api/NatsatSearch/weeksetstnatsat?tnst=tnatsat&day=Monday&am=true
         // ==========================================================
-        [HttpGet("weeksetsnatsat")]
+        [HttpGet("weeksetsbrothers")]
         public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(
-            string nst, string day, bool am = false, bool pm = false)
+            string btr, string day, bool am = false, bool pm = false)
         {
-            if (nst != "natsat")
-                return BadRequest("Parameter must be 'natsat'.");
+            if (btr != "brothers")
+                return BadRequest("Parameter must be 'tnatsat'.");
             if (!DayOrder.ContainsKey(day))
                 return BadRequest("Invalid day. Use Monday–Friday.");
             IQueryable<Calendar> query = _context.Table1.Where(c => c.Days == day);
@@ -94,24 +91,23 @@ namespace TwoDPro3.Controllers
             if (am && pm)
             {
                 query = query.Where(c =>
-                    NatsatNumbers.Contains(c.Am) ||
-                    NatsatNumbers.Contains(c.Pm));
+                    BrothersNumbers.Contains(c.Am) ||
+                    BrothersNumbers.Contains(c.Pm));
             }
             else if (am)
             {
                 query = query.Where(c =>
-                    NatsatNumbers.Contains(c.Am));
+                    BrothersNumbers.Contains(c.Am));
             }
             else if (pm)
             {
                 query = query.Where(c =>
-                    NatsatNumbers.Contains(c.Pm));
+                    BrothersNumbers.Contains(c.Pm));
             }
             else
             {
                 return BadRequest("Either AM or PM must be true.");
             }
-
             var foundRows = await query.OrderBy(c => c.Id).ToListAsync();
 
             if (!foundRows.Any())
@@ -119,7 +115,6 @@ namespace TwoDPro3.Controllers
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
-
         }
 
         // ==========================================================
@@ -199,9 +194,5 @@ namespace TwoDPro3.Controllers
                 .OrderBy(b => b.Min(c => c.Id))
                 .ToList();
         }
-
-
-
-
     }
 }
