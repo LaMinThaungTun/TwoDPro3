@@ -19,7 +19,8 @@ namespace TwoDPro3.Controllers
         // List of Power numbers
         private static readonly List<string> PowerNumbers = new()
         {
-            "13","26","47","58","90","62","74","85","31","09"
+            "13","26","47","58","90","31","62","74","85","09"
+
         };
         // Order for weekdays
         private static readonly Dictionary<string, int> DayOrder = new()
