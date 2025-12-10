@@ -82,7 +82,7 @@ namespace TwoDPro3.Controllers
         // 2) WEEKSETS SEARCH
         // GET api/NatsatSearch/weeksetstnatsat?tnst=tnatsat&day=Monday&am=true
         // ==========================================================
-        [HttpGet("weeksetsbrothers")]
+        [HttpGet("weeksetstens")]
         public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(
             string ten, string day, bool am = false, bool pm = false)
         {
