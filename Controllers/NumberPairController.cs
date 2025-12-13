@@ -2,20 +2,16 @@
 using Microsoft.EntityFrameworkCore;
 using TwoDPro3.Data;
 using TwoDPro3.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace TwoDPro3.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class NumberSearchController : ControllerBase
+    public class NumberPairController : Controller
     {
         private readonly CalendarContext _context;
 
-        public NumberSearchController(CalendarContext context)
+        public NumberPairController(CalendarContext context)
         {
             _context = context;
         }
@@ -48,55 +44,55 @@ namespace TwoDPro3.Controllers
             [2025] = 53
         };
 
-        // 🔹 Endpoint 1: Search across ALL days (AM + PM)
-        [HttpGet("alldays")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string number)
+        // ==========================================================
+        // 1) ALL DAYS SEARCH
+        // GET api/NumberPair/alldaynumberpair?number=65&number2=78
+        // ==========================================================
+        [HttpGet("alldaynumberpair")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(
+            string number, string number2)
         {
+            if (number.Length != 2 || number2.Length != 2)
+                return BadRequest("Both number and number2 must be 2-digit strings.");
+
             var foundRows = await _context.Table1
-                .Where(c => c.Am == number || c.Pm == number)
+                .Where(c =>
+                    c.Am == number &&
+                    c.Pm == number2)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No results found.");
+                return NotFound("No matching AM-PM number pair found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
         }
 
-        // 🔹 Endpoint 2: Search with Day + Time filter
-        [HttpGet("weeksets")]
+        // ==========================================================
+        // 2) WEEKSETS SEARCH
+        // GET api/NumberPair/weeksetsnumberpair?number=65&number2=78&day=Monday
+        // ==========================================================
+        [HttpGet("weeksetsnumberpair")]
         public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(
-            string number, string day, bool am = false, bool pm = false)
+            string number, string number2, string day)
         {
+            if (number.Length != 2 || number2.Length != 2)
+                return BadRequest("Both number and number2 must be 2-digit strings.");
+
             if (!DayOrder.ContainsKey(day))
                 return BadRequest("Invalid day. Use Monday–Friday.");
 
-            IQueryable<Calendar> query = _context.Table1.Where(c => c.Days == day);
-
-            if (am && pm)
-            {
-                query = query.Where(c => c.Am == number || c.Pm == number);
-            }
-            else if (am)
-            {
-                query = query.Where(c => c.Am == number);
-            }
-            else if (pm)
-            {
-                query = query.Where(c => c.Pm == number);
-            }
-            else
-            {
-                return BadRequest("At least one of AM or PM must be true.");
-            }
-
-            var foundRows = await query
+            var foundRows = await _context.Table1
+                .Where(c =>
+                    c.Days == day &&
+                    c.Am == number &&
+                    c.Pm == number2)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No results found.");
+                return NotFound("No matching AM-PM number pair found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
@@ -124,13 +120,7 @@ namespace TwoDPro3.Controllers
             return (year, week);
         }
 
-        // 🔹 Helper: Fetch 4-week blocks around each found row
-        // Ensures:
-        //  - Each found row generates its own block,
-        //  - Overlapping blocks are allowed,
-        //  - Duplicates removed only inside each block,
-        //  - Each block is ordered by Id,
-        //  - Outer list is ordered by first Id in each block.
+        // Fetch 4-week blocks around each found row
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();

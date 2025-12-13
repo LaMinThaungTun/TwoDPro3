@@ -2,20 +2,16 @@
 using Microsoft.EntityFrameworkCore;
 using TwoDPro3.Data;
 using TwoDPro3.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace TwoDPro3.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class NumberSearchController : ControllerBase
+    public class DoublePairController : Controller
     {
         private readonly CalendarContext _context;
 
-        public NumberSearchController(CalendarContext context)
+        public DoublePairController(CalendarContext context)
         {
             _context = context;
         }
@@ -48,55 +44,63 @@ namespace TwoDPro3.Controllers
             [2025] = 53
         };
 
-        // 🔹 Endpoint 1: Search across ALL days (AM + PM)
-        [HttpGet("alldays")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string number)
+        private static readonly HashSet<string> DoubleNumbers = new()
         {
+            "00", "11", "22", "33", "44", "55", "66", "77", "88", "99"
+        };
+
+        private static readonly string ClosedCode = "aa";
+        // ==========================================================
+        // 1) ALL DAYS DOUBLE PAIR SEARCH
+        // GET api/DoublePair/alldaydoublepair?doublepair=doublepair
+        // ==========================================================
+        [HttpGet("alldaydoublepair")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string doublepair)
+        {
+            if (doublepair != "doublepair")
+                return BadRequest("Parameter must be 'doublepair'.");
+
             var foundRows = await _context.Table1
-                .Where(c => c.Am == number || c.Pm == number)
+                .Where(c =>
+                    DoubleNumbers.Contains(c.Am) &&
+                    DoubleNumbers.Contains(c.Pm) &&
+                    c.Am != ClosedCode &&
+                    c.Pm != ClosedCode)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No results found.");
+                return NotFound("No double number pairs found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
         }
 
-        // 🔹 Endpoint 2: Search with Day + Time filter
-        [HttpGet("weeksets")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(
-            string number, string day, bool am = false, bool pm = false)
+        // ==========================================================
+        // 2) WEEK SETS DOUBLE PAIR SEARCH
+        // GET api/DoublePair/weeksetsdoublepair?doublepair=doublepair&day=Monday
+        // ==========================================================
+        [HttpGet("weeksetsdoublepair")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(string doublepair, string day)
         {
+            if (doublepair != "doublepair")
+                return BadRequest("Parameter must be 'doublepair'.");
+
             if (!DayOrder.ContainsKey(day))
                 return BadRequest("Invalid day. Use Monday–Friday.");
 
-            IQueryable<Calendar> query = _context.Table1.Where(c => c.Days == day);
-
-            if (am && pm)
-            {
-                query = query.Where(c => c.Am == number || c.Pm == number);
-            }
-            else if (am)
-            {
-                query = query.Where(c => c.Am == number);
-            }
-            else if (pm)
-            {
-                query = query.Where(c => c.Pm == number);
-            }
-            else
-            {
-                return BadRequest("At least one of AM or PM must be true.");
-            }
-
-            var foundRows = await query
+            var foundRows = await _context.Table1
+                .Where(c =>
+                    c.Days == day &&
+                    DoubleNumbers.Contains(c.Am) &&
+                    DoubleNumbers.Contains(c.Pm) &&
+                    c.Am != ClosedCode &&
+                    c.Pm != ClosedCode)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No results found.");
+                return NotFound("No double number pairs found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
@@ -124,13 +128,7 @@ namespace TwoDPro3.Controllers
             return (year, week);
         }
 
-        // 🔹 Helper: Fetch 4-week blocks around each found row
-        // Ensures:
-        //  - Each found row generates its own block,
-        //  - Overlapping blocks are allowed,
-        //  - Duplicates removed only inside each block,
-        //  - Each block is ordered by Id,
-        //  - Outer list is ordered by first Id in each block.
+        // Fetch 4-week blocks around each found row
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
