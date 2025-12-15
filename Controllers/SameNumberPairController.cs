@@ -89,7 +89,9 @@ namespace TwoDPro3.Controllers
                     c.Days == day &&
                     c.Am == c.Pm &&
                     c.Am != ClosedCode &&
-                    c.Pm != ClosedCode)
+                    c.Pm != ClosedCode &&
+                    c.Am != null &&
+                    c.Pm != null)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
