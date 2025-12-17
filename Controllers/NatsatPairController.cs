@@ -31,6 +31,23 @@ namespace TwoDPro3.Controllers
             ["Thursday"] = 4,
             ["Friday"] = 5
         };
+        // Weeks per year (adjust as needed)
+        private static readonly Dictionary<int, int> WeeksInYear = new()
+        {
+            [2013] = 52,
+            [2014] = 53,
+            [2015] = 52,
+            [2016] = 52,
+            [2017] = 52,
+            [2018] = 53,
+            [2019] = 52,
+            [2020] = 52,
+            [2021] = 52,
+            [2022] = 52,
+            [2023] = 52,
+            [2024] = 52,
+            [2025] = 53
+        };
 
         // ==========================================================
         // 1) ALL DAYS NATSAT PAIR SEARCH
@@ -87,11 +104,28 @@ namespace TwoDPro3.Controllers
         // ==========================================================
         // WEEK NORMALIZER + FOUR WEEK SET BUILDER (same as before)
         // ==========================================================
+        // 🔹 Normalize year/week (handles cross-year boundaries)
         private (int Year, int Week) NormalizeWeek(int year, int week)
         {
-            int maxWeeks = 52;
-            return (year, Math.Max(1, Math.Min(week, maxWeeks)));
+            int maxWeeks = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
+
+            if (week < 1)
+            {
+                int prevYear = year - 1;
+                int prevYearWeeks = WeeksInYear.ContainsKey(prevYear) ? WeeksInYear[prevYear] : 52;
+                return (prevYear, prevYearWeeks + week);
+            }
+
+            if (week > maxWeeks)
+            {
+                int nextYear = year + 1;
+                int nextYearWeeks = WeeksInYear.ContainsKey(nextYear) ? WeeksInYear[nextYear] : 52;
+                return (nextYear, week - maxWeeks);
+            }
+
+            return (year, week);
         }
+
 
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
