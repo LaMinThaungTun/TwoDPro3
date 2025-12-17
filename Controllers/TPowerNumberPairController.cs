@@ -3,26 +3,26 @@ using Microsoft.EntityFrameworkCore;
 using TwoDPro3.Data;
 using TwoDPro3.Models;
 
-
 namespace TwoDPro3.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-
-    public class TPowerSearchController : Controller
+    public class TPowerNumberPairController : Controller
     {
         private readonly CalendarContext _context;
-        public TPowerSearchController(CalendarContext context)
+
+        public TPowerNumberPairController(CalendarContext context)
         {
             _context = context;
         }
-        // List of Power numbers
-        private static readonly List<string> PowerNumbers = new()
+
+        // Natsat numbers list
+        private static readonly HashSet<string> TPowerNumbers = new()
         {
             "13","26","47","58","90","31","62","74","85","09"
-
         };
-        // Order for weekdays
+
+        // Weekday order
         private static readonly Dictionary<string, int> DayOrder = new()
         {
             ["Monday"] = 1,
@@ -31,7 +31,7 @@ namespace TwoDPro3.Controllers
             ["Thursday"] = 4,
             ["Friday"] = 5
         };
-        // Weeks per year
+        // Weeks per year (adjust as needed)
         private static readonly Dictionary<int, int> WeeksInYear = new()
         {
             [2013] = 52,
@@ -50,102 +50,83 @@ namespace TwoDPro3.Controllers
         };
 
         // ==========================================================
-        // 1) ALL DAYS SEARCH
-        // GET api/TPowerSearch/alldaystpower?tpwr=tpower
+        // 1) ALL DAYS TPOWER PAIR SEARCH
+        // GET api/TPowerNumberPair/alldaytpowerpair?tpowerpair=tpowerpair
         // ==========================================================
-        [HttpGet("alldaystpower")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string tpwr)
+        [HttpGet("alldaytpowerpair")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string tpowerpair)
         {
-            if (tpwr != "tpower")
-                return BadRequest("Parameter must be 'tpower'.");
+            if (tpowerpair != "tpowerpair")
+                return BadRequest("Parameter must be 'tpowerpair'.");
 
             var foundRows = await _context.Table1
                 .Where(c =>
-                    (PowerNumbers.Contains(c.Am) ||
-                     PowerNumbers.Contains(c.Pm))
-                    && (c.Years == 2025 || c.Years == 2026))
+                    TPowerNumbers.Contains(c.Am) &&
+                    TPowerNumbers.Contains(c.Pm))
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No double numbers found.");
+                return NotFound("No natsat number pairs found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
-
         }
+
         // ==========================================================
-        // 2) WEEKSETS SEARCH
-        // GET api/TPowerSearch/weeksetstpower?tpwr=tpower&day=Monday&am=true
+        // 2) WEEK SETS NATSAT PAIR SEARCH
+        // GET api/TPowerNumberPair/weeksetstpowerpair?tpowerpair=tpowerpair&day=Monday
         // ==========================================================
-        [HttpGet("weeksetstpower")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(
-            string tpwr, string day, bool am = false, bool pm = false)
+        [HttpGet("weeksetstpowerpair")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(string tpowerpair, string day)
         {
-            if (tpwr != "tpower")
-                return BadRequest("Parameter must be 'tpower'.");
+            if (tpowerpair != "tpowerpair")
+                return BadRequest("Parameter must be 'tpowerpair'.");
+
             if (!DayOrder.ContainsKey(day))
                 return BadRequest("Invalid day. Use Monday–Friday.");
-            IQueryable<Calendar> query = _context.Table1.Where(c => c.Days == day);
 
-            if (am && pm)
-            {
-                query = query.Where(c =>
-                    PowerNumbers.Contains(c.Am) ||
-                    PowerNumbers.Contains(c.Pm));
-            }
-            else if (am)
-            {
-                query = query.Where(c =>
-                    PowerNumbers.Contains(c.Am));
-            }
-
-            else if (pm)
-            {
-                query = query.Where(c =>
-                    PowerNumbers.Contains(c.Pm));
-            }
-
-            else
-            {
-                return BadRequest("Either AM or PM must be true.");
-            }
-
-            var foundRows = await query.OrderBy(c => c.Id).ToListAsync();
+            var foundRows = await _context.Table1
+                .Where(c =>
+                    c.Days == day &&
+                    TPowerNumbers.Contains(c.Am) &&
+                    TPowerNumbers.Contains(c.Pm))
+                .OrderBy(c => c.Id)
+                .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No power numbers found.");
+                return NotFound("No natsat number pairs found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
-
         }
 
         // ==========================================================
-        // WEEK NORMALIZER
+        // WEEK NORMALIZER + FOUR WEEK SET BUILDER (same as before)
         // ==========================================================
+        // 🔹 Normalize year/week (handles cross-year boundaries)
         private (int Year, int Week) NormalizeWeek(int year, int week)
         {
             int maxWeeks = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
+
             if (week < 1)
             {
                 int prevYear = year - 1;
-                int prevWeeks = WeeksInYear.ContainsKey(prevYear) ? WeeksInYear[prevYear] : 52;
-                return (prevYear, prevWeeks + week);
+                int prevYearWeeks = WeeksInYear.ContainsKey(prevYear) ? WeeksInYear[prevYear] : 52;
+                return (prevYear, prevYearWeeks + week);
             }
 
             if (week > maxWeeks)
             {
                 int nextYear = year + 1;
+                int nextYearWeeks = WeeksInYear.ContainsKey(nextYear) ? WeeksInYear[nextYear] : 52;
                 return (nextYear, week - maxWeeks);
             }
 
             return (year, week);
         }
 
-        // ==========================================================
-        // FOUR-WEEK BLOCK BUILDER
-        // ==========================================================
+
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
@@ -193,9 +174,7 @@ namespace TwoDPro3.Controllers
                 }
             }
 
-            return weekSets
-                .OrderBy(b => b.Min(c => c.Id))
-                .ToList();
+            return weekSets.OrderBy(b => b.Min(c => c.Id)).ToList();
         }
 
     }
