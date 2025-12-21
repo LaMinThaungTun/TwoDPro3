@@ -1,0 +1,137 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TwoDPro3.Data;
+using TwoDPro3.Models;
+
+namespace TwoDPro3.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class NatsatTensPairController : Controller
+    {
+        private readonly CalendarContext _context;
+
+        public NatsatTensPairController(CalendarContext context)
+        {
+            _context = context;
+        }
+
+        private static readonly HashSet<string> NatsatNumbers = new()
+        {
+            "07","18","24","35","69",
+            "70","81","42","53","96"
+        };
+
+        private static readonly HashSet<string> TensNumbers = new()
+        {
+            "10","20","30","40","50","60","70","80","90",
+            "01","02","03","04","05","06","07","08","09"
+        };
+
+        private static readonly Dictionary<string, int> DayOrder = new()
+        {
+            ["Monday"] = 1,
+            ["Tuesday"] = 2,
+            ["Wednesday"] = 3,
+            ["Thursday"] = 4,
+            ["Friday"] = 5
+        };
+
+        private static readonly Dictionary<int, int> WeeksInYear = new()
+        {
+            [2013] = 52,
+            [2014] = 53,
+            [2015] = 52,
+            [2016] = 52,
+            [2017] = 52,
+            [2018] = 53,
+            [2019] = 52,
+            [2020] = 52,
+            [2021] = 52,
+            [2022] = 52,
+            [2023] = 52,
+            [2024] = 52,
+            [2025] = 53
+        };
+
+        [HttpGet("alldaynatsattenspair")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string natsattenspair)
+        {
+            if (natsattenspair != "natsattenspair")
+                return BadRequest("Parameter must be 'natsattenspair'.");
+
+            var foundRows = await _context.Table1
+                .Where(c => NatsatNumbers.Contains(c.Am) && TensNumbers.Contains(c.Pm))
+                .OrderBy(c => c.Id)
+                .ToListAsync();
+
+            if (!foundRows.Any()) return NotFound();
+
+            return Ok(await GetFourWeekSetsAsync(foundRows));
+        }
+
+        [HttpGet("weeksetnatsattenspair")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(string natsattenspair, string day)
+        {
+            if (natsattenspair != "natsattenspair")
+                return BadRequest("Parameter must be 'natsattenspair'.");
+
+            if (!DayOrder.ContainsKey(day)) return BadRequest("Invalid day.");
+
+            var foundRows = await _context.Table1
+                .Where(c => c.Days == day && NatsatNumbers.Contains(c.Am) && TensNumbers.Contains(c.Pm))
+                .OrderBy(c => c.Id)
+                .ToListAsync();
+
+            if (!foundRows.Any()) return NotFound();
+
+            return Ok(await GetFourWeekSetsAsync(foundRows));
+        }
+
+        private (int Year, int Week) NormalizeWeek(int year, int week)
+        {
+            int max = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
+            if (week < 1)
+            {
+                int prevYear = year - 1;
+                int prevWeeks = WeeksInYear.ContainsKey(prevYear) ? WeeksInYear[prevYear] : 52;
+                return (prevYear, prevWeeks + week);
+            }
+            if (week > max)
+                return (year + 1, week - max);
+            return (year, week);
+        }
+
+        private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
+        {
+            var result = new List<List<Calendar>>();
+            var processed = new HashSet<(int, int)>();
+
+            foreach (var row in foundRows)
+            {
+                var key = (row.Years, row.Weeks);
+                if (processed.Contains(key)) continue;
+                processed.Add(key);
+
+                int[] offsets = { -2, -1, 0, 1 };
+                var block = new List<Calendar>();
+
+                foreach (var offset in offsets)
+                {
+                    var (y, w) = NormalizeWeek(row.Years, row.Weeks + offset);
+                    var rows = await _context.Table1
+                        .Where(c => c.Years == y && c.Weeks == w)
+                        .ToListAsync();
+
+                    block.AddRange(rows.OrderBy(c => DayOrder.GetValueOrDefault(c.Days, 999))
+                        .ThenBy(c => c.Id));
+                }
+
+                if (block.Any())
+                    result.Add(block.GroupBy(c => c.Id).Select(g => g.First()).ToList());
+            }
+
+            return result.OrderBy(b => b.Min(c => c.Id)).ToList();
+        }
+    }
+}
