@@ -36,7 +36,7 @@ namespace TwoDPro3.Controllers
         public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string number)
         {
             var foundRows = await _context.Table1
-                .Where(c => (c.AmDgTwo == number || c.PmDgTwo == number) && (c.Years == 2025 || c.Years == 2026))
+                .Where(c => (c.AmDgTwo == number || c.PmDgTwo == number) && (c.Years == 2024 || c.Years == 2025 || c.Years == 2026))
                 .OrderBy(c => c.Id)
                 .ToListAsync();
             if (!foundRows.Any())
