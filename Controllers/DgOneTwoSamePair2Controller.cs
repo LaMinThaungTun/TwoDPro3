@@ -5,18 +5,17 @@ using TwoDPro3.Models;
 
 namespace TwoDPro3.Controllers
 {
+
     [ApiController]
     [Route("api/[controller]")]
-    public class DgOneTwoSamePairController : Controller
+    public class DgOneTwoSamePair2Controller : Controller
     {
         private readonly CalendarContext _context;
-
-        public DgOneTwoSamePairController(CalendarContext context)
+        public DgOneTwoSamePair2Controller(CalendarContext context)
         {
             _context = context;
         }
-
-        // Order for weekdays
+        // Order for weekdays (kept for compatibility if you want day ordering)
         private static readonly Dictionary<string, int> DayOrder = new()
         {
             ["Monday"] = 1,
@@ -25,8 +24,7 @@ namespace TwoDPro3.Controllers
             ["Thursday"] = 4,
             ["Friday"] = 5
         };
-
-        // Weeks per year
+        // Weeks per year (adjust as needed)
         private static readonly Dictionary<int, int> WeeksInYear = new()
         {
             [2013] = 52,
@@ -43,37 +41,46 @@ namespace TwoDPro3.Controllers
             [2024] = 52,
             [2025] = 53
         };
-
+        private static readonly string ClosedCode = "aa";
         // ==========================================================
-        // 1) ALL DAYS SEARCH
-        // GET api/DgOneTwoSamePair/alldaydgonetwosamepair?dgonetwosamepair=dgonetwosamepair
+        // 1) ALL DAYS Digit One Two Same PAIR SEARCH
+        // GET api/DgOneTwoSamePair2/alldaydgonetwosamepair?dgonetwosamepair=dgonetwosamepair
         // ==========================================================
         [HttpGet("alldaydgonetwosamepair")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(
-            string dgonetwosamepair)
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string dgonetwosamepair)
         {
+            if (dgonetwosamepair != "dgonetwosamepair")
+                return BadRequest("Parameter must be 'dgonetwosamepair'.");
+
             var foundRows = await _context.Table1
                 .Where(c =>
                     c.AmDgOne == c.PmDgTwo &&
-                    c.AmDgOne != "aa" && (c.Years == 2024 || c.Years == 2025 || c.Years == 2026))   
+                    c.Am != ClosedCode &&
+                    c.Pm != ClosedCode &&
+                    c.Am != null &&
+                    c.Pm != null &&
+                    (c.Years == 2024 || c.Years == 2025 || c.Years == 2026)
+                    )
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No matching DG One–Two SAME pair found.");
+                return NotFound("No valid same AM/PM number pairs found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
         }
-
         // ==========================================================
-        // 2) WEEKSETS SEARCH
-        // GET api/DgOneTwoSamePair/weeksetsdgonetwosamepair?dgonetwosamepair=dgonetwosamepair&day=Monday
+        // 2) WEEK SETS Digit One Two Same SEARCH
+        // GET api/SameNumberPair/weeksetsdgonetwosamepair?dgonetwosamepair=dgonetwosamepair&day=Monday
         // ==========================================================
         [HttpGet("weeksetsdgonetwosamepair")]
         public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(
             string dgonetwosamepair, string day)
         {
+            if (dgonetwosamepair != "dgonetwosamepair")
+                return BadRequest("Parameter must be 'dgonetwosamepair'.");
+
             if (!DayOrder.ContainsKey(day))
                 return BadRequest("Invalid day. Use Monday–Friday.");
 
@@ -81,18 +88,20 @@ namespace TwoDPro3.Controllers
                 .Where(c =>
                     c.Days == day &&
                     c.AmDgOne == c.PmDgTwo &&
-                    c.AmDgOne != "aa")   // 🚫 skip "aa"
+                    c.Am != ClosedCode &&
+                    c.Pm != ClosedCode &&
+                    c.Am != null &&
+                    c.Pm != null)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
             if (!foundRows.Any())
-                return NotFound("No matching DG One–Two SAME pair found.");
+                return NotFound("No valid same AM/PM number pairs found.");
 
             var weekSets = await GetFourWeekSetsAsync(foundRows);
             return Ok(weekSets);
         }
-
-        // 🔹 Normalize year/week (cross-year safe)
+        // 🔹 Normalize year/week (handles cross-year boundaries)
         private (int Year, int Week) NormalizeWeek(int year, int week)
         {
             int maxWeeks = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
@@ -107,6 +116,7 @@ namespace TwoDPro3.Controllers
             if (week > maxWeeks)
             {
                 int nextYear = year + 1;
+                int nextYearWeeks = WeeksInYear.ContainsKey(nextYear) ? WeeksInYear[nextYear] : 52;
                 return (nextYear, week - maxWeeks);
             }
 
@@ -117,29 +127,32 @@ namespace TwoDPro3.Controllers
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
-            var processedWeeks = new HashSet<(int year, int week)>();
+            var processedWeeks = new HashSet<(int year, int week)>(); // track processed base weeks
 
             foreach (var row in foundRows)
             {
+                // Skip if we've already processed this base week (year + week combination)
                 var baseKey = (row.Years, row.Weeks);
                 if (processedWeeks.Contains(baseKey))
                     continue;
 
                 processedWeeks.Add(baseKey);
 
-                int[] offsets = { -2, -1, 0, 1 };
+                // Define offsets for 4-week block
+                var offsets = new int[] { -2, -1, 0, 1 };
 
+                // Normalize and collect week-year pairs for this block
                 var normalizedWeeks = offsets
-                    .Select(o => NormalizeWeek(row.Years, row.Weeks + o))
+                    .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
                     .Distinct()
                     .ToList();
 
                 var block = new List<Calendar>();
 
-                foreach (var (y, w) in normalizedWeeks)
+                foreach (var (normYear, normWeek) in normalizedWeeks)
                 {
                     var weekRows = await _context.Table1
-                        .Where(c => c.Years == y && c.Weeks == w)
+                        .Where(c => c.Years == normYear && c.Weeks == normWeek)
                         .ToListAsync();
 
                     if (weekRows.Any())
@@ -155,6 +168,7 @@ namespace TwoDPro3.Controllers
 
                 if (block.Any())
                 {
+                    // Remove duplicates within this block (in case of data overlaps)
                     var uniqueBlock = block
                         .GroupBy(c => c.Id)
                         .Select(g => g.First())
@@ -165,9 +179,12 @@ namespace TwoDPro3.Controllers
                 }
             }
 
-            return weekSets
+            // Sort final list by the earliest record in each block
+            weekSets = weekSets
                 .OrderBy(b => b.Min(c => c.Id))
                 .ToList();
+
+            return weekSets;
         }
     }
 }
