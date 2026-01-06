@@ -75,7 +75,7 @@ namespace TwoDPro3.Controllers
                         (c.AmDgOne.Substring(0, 1) == "6" && c.PmDgOne.Substring(0, 1) == "9") ||
                         (c.AmDgOne.Substring(0, 1) == "9" && c.PmDgOne.Substring(0, 1) == "6")
                     )
-                    && (c.Years == 2024 || c.Years == 2025 || c.Years == 2026)
+                    
                 )
                 .OrderBy(c => c.Id)
                 .ToListAsync();

@@ -68,8 +68,7 @@ namespace TwoDPro3.Controllers
                         (c.AmDgOne == "7" && c.PmDgOne == "8") || (c.AmDgOne == "8" && c.PmDgOne == "7") ||
                         (c.AmDgOne == "8" && c.PmDgOne == "9") || (c.AmDgOne == "9" && c.PmDgOne == "8") ||
                         (c.AmDgOne == "9" && c.PmDgOne == "0") || (c.AmDgOne == "0" && c.PmDgOne == "9")
-                    ) &&
-                    (c.Years == 2024 || c.Years == 2025 || c.Years == 2026)
+                    ) 
                 )
                 .OrderBy(c => c.Id)
                 .ToListAsync();

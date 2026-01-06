@@ -62,8 +62,7 @@ namespace TwoDPro3.Controllers
                     c.Am != ClosedCode &&
                     c.Pm != ClosedCode &&
                     c.Am != null &&
-                    c.Pm != null &&
-                    (c.Years == 2024 || c.Years == 2025 || c.Years == 2026))
+                    c.Pm != null )
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
