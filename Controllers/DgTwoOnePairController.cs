@@ -58,7 +58,7 @@ namespace TwoDPro3.Controllers
             var foundRows = await _context.Table1
                 .Where(c =>
                     c.AmDgTwo == number &&
-                    c.PmDgOne == number2 && (c.Years == 2024 || c.Years == 2025 || c.Years == 2026))
+                    c.PmDgOne == number2)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
