@@ -62,7 +62,9 @@ namespace TwoDPro3.Controllers
                     c.AmBreak != ClosedCode &&
                     c.PmBreak != ClosedCode &&
                     c.AmBreak != null &&
-                    c.PmBreak != null )
+                    c.PmBreak != null &&
+                    c.AmBreak != "aa" &&
+                    c.PmBreak != "aa")
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 

@@ -50,7 +50,7 @@ namespace TwoDPro3.Controllers
         // ==========================================================
         [HttpGet("alldaybreakpair")]
         public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(
-            string number, string number2)
+            string? number, string? number2)
         {
             if (number.Length != 1 || number2.Length != 1)
                 return BadRequest("Both number and number2 must be 1-digit strings.");
