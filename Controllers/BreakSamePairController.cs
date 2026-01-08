@@ -51,7 +51,7 @@ namespace TwoDPro3.Controllers
         // GET api/BreakSamePair/alldaysamebreakpair?samebreakpair=samebreakpair
         // ==========================================================
         [HttpGet("alldaysamebreakpair")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string? samebreakpair)
+        public async Task<ActionResult<List<List<Calendar>>>> SearchAllDays(string samebreakpair)
         {
             if (samebreakpair != "samebreakpair")
                 return BadRequest();
@@ -62,9 +62,7 @@ namespace TwoDPro3.Controllers
                     c.AmBreak != ClosedCode &&
                     c.PmBreak != ClosedCode &&
                     c.AmBreak != null &&
-                    c.PmBreak != null &&
-                    c.AmBreak != "aa" &&
-                    c.PmBreak != "aa")
+                    c.PmBreak != null )
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
