@@ -86,8 +86,7 @@ namespace TwoDPro3.Controllers
                 .Where(c =>
                     c.Days == day &&
                     c.AmBreak == number &&
-                    c.PmBreak == number2 && 
-                    (c.Years == 2024 || c.Years == 2025 || c.Years == 2026))
+                    c.PmBreak == number2 )
                 .OrderBy(c => c.Id)
                 .ToListAsync();
 
