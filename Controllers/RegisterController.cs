@@ -20,7 +20,7 @@ namespace TwoDPro3.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Register(RegisterRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             // ---------- Validation ----------
             if (string.IsNullOrWhiteSpace(request.UserName))
@@ -31,13 +31,15 @@ namespace TwoDPro3.Controllers
 
             if (string.IsNullOrWhiteSpace(request.Email) &&
                 string.IsNullOrWhiteSpace(request.PhoneNumber))
-                return BadRequest("Email or Phone required");
+                return BadRequest("Email or phone number required");
 
-            string? email = request.Email?.Trim().ToLower();
-            string? phone = request.PhoneNumber?.Trim();
+            var userName = request.UserName.Trim();
+            var email = request.Email?.Trim().ToLower();
+            var phone = request.PhoneNumber?.Trim();
 
-            // ---------- Duplicate Check ----------
+            // ---------- Duplicate Check (SAFE) ----------
             bool exists = await _context.Users.AnyAsync(u =>
+                u.UserName == userName ||
                 (!string.IsNullOrEmpty(email) && u.Email == email) ||
                 (!string.IsNullOrEmpty(phone) && u.PhoneNumber == phone)
             );
@@ -45,7 +47,7 @@ namespace TwoDPro3.Controllers
             if (exists)
                 return Conflict("User already exists");
 
-            // ---------- Free Trial Plan ----------
+            // ---------- Get Free Trial Plan ----------
             var freePlan = await _context.MembershipPlans
                 .FirstOrDefaultAsync(p => p.Name == "FREE_TRIAL" && p.IsActive);
 
@@ -53,16 +55,16 @@ namespace TwoDPro3.Controllers
                 return StatusCode(500, "Free trial plan not configured");
 
             // ---------- Transaction ----------
-            using var tx = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
                 var user = new User
                 {
-                    UserName = request.UserName.Trim(),
+                    UserName = userName,
                     Email = email,
                     PhoneNumber = phone,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),                    
                     IsActive = true,
                     IsVerified = false,
                     CreatedAt = DateTime.UtcNow
@@ -76,7 +78,7 @@ namespace TwoDPro3.Controllers
                     UserId = user.Id,
                     MembershipPlanId = freePlan.Id,
                     StartDate = DateTime.UtcNow.Date,
-                    EndDate = DateTime.UtcNow.Date.AddDays(14),
+                    EndDate = DateTime.UtcNow.Date.AddDays(freePlan.DurationDays),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -84,7 +86,7 @@ namespace TwoDPro3.Controllers
                 _context.UserMemberships.Add(membership);
                 await _context.SaveChangesAsync();
 
-                await tx.CommitAsync();
+                await transaction.CommitAsync();
 
                 return Ok(new RegisterResponse
                 {
@@ -93,10 +95,10 @@ namespace TwoDPro3.Controllers
                     UserId = user.Id
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                await tx.RollbackAsync();
-                throw;
+                await transaction.RollbackAsync();
+                return StatusCode(500, $"Registration failed: {ex.Message}");
             }
         }
     }
