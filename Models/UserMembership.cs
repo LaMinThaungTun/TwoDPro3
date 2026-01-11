@@ -6,10 +6,8 @@ namespace TwoDPro3.Models
     [Table("user_memberships")]
     public class UserMembership
     {
+        // 🔑 Primary Key = UserId (ONE user → ONE membership)
         [Key]
-        [Column("id")]
-        public int Id { get; set; }
-
         [Column("user_id")]
         public int UserId { get; set; }
 
@@ -28,8 +26,8 @@ namespace TwoDPro3.Models
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 
-        // 🔗 Optional navigation properties (recommended)
-        public User? User { get; set; }
-        public MembershipPlan? MembershipPlan { get; set; }
+        // 🔗 Navigation
+        public User User { get; set; } = null!;
+        public MembershipPlan MembershipPlan { get; set; } = null!;
     }
 }

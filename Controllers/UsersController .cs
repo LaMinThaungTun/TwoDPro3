@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using TwoDPro3.Data;  // Your DbContext namespace
-using TwoDPro3.Models; // Your User model namespace
+using TwoDPro3.Data;
+using TwoDPro3.Models;
 
 namespace TwoDPro3.Controllers
 {
     [ApiController]
-    [Route("api/users")]
+    [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
         private readonly CalendarContext _context;
@@ -16,22 +16,36 @@ namespace TwoDPro3.Controllers
             _context = context;
         }
 
-        // GET api/users/{id}
-        [HttpGet("{id:int}")]
+        // 🔹 GET: api/users/{id}
+        [HttpGet("{id}")]
         public async Task<IActionResult> GetUserProfile(int id)
         {
             var user = await _context.Users
                 .Where(u => u.Id == id)
                 .Select(u => new
                 {
-                    u.UserName,
-                    u.Email,
-                    u.LastLoginAt
+                    u.Id,
+                    UserName = u.UserName,
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    u.LastLoginAt,
+
+                    Membership = _context.UserMemberships
+                        .Where(um => um.UserId == u.Id && um.IsActive)
+                        .Select(um => new
+                        {
+                            PlanId = um.MembershipPlan.Id,
+                            PlanName = um.MembershipPlan.Name,
+                            um.StartDate,
+                            um.EndDate,
+                            um.IsActive
+                        })
+                        .FirstOrDefault()
                 })
                 .FirstOrDefaultAsync();
 
             if (user == null)
-                return NotFound();
+                return NotFound("User not found");
 
             return Ok(user);
         }

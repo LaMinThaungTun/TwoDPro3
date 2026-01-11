@@ -36,5 +36,8 @@ namespace TwoDPro3.Models
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
+
+        // 🔗 Reverse navigation
+        public ICollection<UserMembership> UserMemberships { get; set; } = new List<UserMembership>();
     }
 }
