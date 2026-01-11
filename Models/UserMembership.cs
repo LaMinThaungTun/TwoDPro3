@@ -1,33 +1,35 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using TwoDPro3.Models;
 
-namespace TwoDPro3.Models
+[Table("user_memberships")]
+public class UserMembership
 {
-    [Table("user_memberships")]
-    public class UserMembership
-    {
-        // 🔑 Primary Key = UserId (ONE user → ONE membership)
-        [Key]
-        [Column("user_id")]
-        public int UserId { get; set; }
+    [Key]
+    [Column("id")]
+    public int Id { get; set; }
 
-        [Column("membership_plan_id")]
-        public int MembershipPlanId { get; set; }
+    [Column("user_id")]
+    public int UserId { get; set; }
 
-        [Column("start_date")]
-        public DateTime StartDate { get; set; }
+    [Column("membership_plan_id")]
+    public int MembershipPlanId { get; set; }
 
-        [Column("end_date")]
-        public DateTime EndDate { get; set; }
+    [ForeignKey("UserId")]
+    public User User { get; set; } = null!;
 
-        [Column("is_active")]
-        public bool IsActive { get; set; }
+    [ForeignKey("MembershipPlanId")]
+    public MembershipPlan MembershipPlan { get; set; } = null!;
 
-        [Column("created_at")]
-        public DateTime CreatedAt { get; set; }
+    [Column("start_date")]
+    public DateTime StartDate { get; set; }
 
-        // 🔗 Navigation
-        public User User { get; set; } = null!;
-        public MembershipPlan MembershipPlan { get; set; } = null!;
-    }
+    [Column("end_date")]
+    public DateTime EndDate { get; set; }
+
+    [Column("is_active")]
+    public bool IsActive { get; set; }
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; }
 }

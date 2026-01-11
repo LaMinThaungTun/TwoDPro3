@@ -14,21 +14,9 @@ namespace TwoDPro3.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            // UserMembership → User (many-to-one)
-            modelBuilder.Entity<UserMembership>()
-                .HasOne(um => um.User)
-                .WithMany()
-                .HasForeignKey(um => um.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // UserMembership → MembershipPlan (many-to-one)
-            modelBuilder.Entity<UserMembership>()
-                .HasOne(um => um.MembershipPlan)
-                .WithMany()
-                .HasForeignKey(um => um.MembershipPlanId)
-                .OnDelete(DeleteBehavior.Restrict);
         }
+
+
     }
 
 }
