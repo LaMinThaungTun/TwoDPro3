@@ -37,7 +37,7 @@ namespace TwoDPro3.Services
                 try
                 {
                     // Wait 24 hours before next check
-                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                    await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
                 }
                 catch (TaskCanceledException)
                 {
@@ -75,7 +75,7 @@ namespace TwoDPro3.Services
         private async Task DelayUntilNextCheckAsync(CancellationToken stoppingToken)
         {
             // Your desired daily check time in UTC (e.g., 05:30 AM UTC for Myanmar noon)
-            var targetTimeUtc = new TimeSpan(5, 30, 0);
+            var targetTimeUtc = new TimeSpan(13, 00, 0);
 
             var nowUtc = DateTime.UtcNow;
             var nextRunTimeUtc = nowUtc.Date + targetTimeUtc;
