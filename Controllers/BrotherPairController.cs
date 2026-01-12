@@ -62,82 +62,53 @@ namespace TwoDPro3.Controllers
         // GET api/BrotherPair/weeksetsbrotherpair?brotherpair=brotherpair&day=Monday
         // ==========================================================
         [HttpGet("weeksetsbrotherpair")]
-        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(string brotherpair, string day)
-        {
-            if (brotherpair != "brotherpair")
-                return BadRequest("Parameter must be 'brotherpair'.");
-
-            if (!DayOrder.ContainsKey(day))
-                return BadRequest("Invalid day. Use Monday–Friday.");
-
-            var foundRows = await _context.Table1
-                .Where(c =>
-                    c.Days == day &&
-                    BrotherNumbers.Contains(c.Am) &&
-                    BrotherNumbers.Contains(c.Pm))
-                .OrderBy(c => c.Id)
-                .ToListAsync();
-
-            if (!foundRows.Any())
-                return NotFound("No brother number pairs found.");
-
-            var weekSets = await GetFourWeekSetsAsync(foundRows);
-            return Ok(weekSets);
-        }
-
-        // ==========================================================
-        // WEEK NORMALIZER + FOUR WEEK SET BUILDER (same as others)
-        // ==========================================================
-        private (int Year, int Week) NormalizeWeek(int year, int week)
-        {
-            int maxWeeks = 52;
-            return (year, Math.Max(1, Math.Min(week, maxWeeks)));
-        }
-
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
-            var processed = new HashSet<(int y, int w)>();
+            var processedWeeks = new HashSet<(int year, int week)>(); // track processed base weeks
 
             foreach (var row in foundRows)
             {
-                var key = (row.Years, row.Weeks);
-                if (processed.Contains(key)) continue;
+                var baseKey = (row.Years, row.Weeks);
+                if (processedWeeks.Contains(baseKey))
+                    continue;
 
-                processed.Add(key);
+                processedWeeks.Add(baseKey);
 
-                int[] offsets = { -2, -1, 0, 1 };
-
+                var offsets = new int[] { -2, -1, 0, 1 };
                 var normalizedWeeks = offsets
-                    .Select(o => NormalizeWeek(row.Years, row.Weeks + o))
+                    .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
                     .Distinct()
                     .ToList();
 
                 var block = new List<Calendar>();
 
-                foreach (var (yr, wk) in normalizedWeeks)
+                foreach (var (normYear, normWeek) in normalizedWeeks)
                 {
-                    var rows = await _context.Table1
-                        .Where(c => c.Years == yr && c.Weeks == wk)
+                    var weekRows = await _context.Table1
+                        .Where(c => c.Years == normYear && c.Weeks == normWeek)
                         .ToListAsync();
 
-                    if (rows.Any())
+                    if (weekRows.Any())
                     {
-                        block.AddRange(
-                            rows.OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
-                                .ThenBy(c => c.Id)
-                        );
+                        var ordered = weekRows
+                            .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
+                            .ThenBy(c => c.Id)
+                            .ToList();
+
+                        block.AddRange(ordered);
                     }
                 }
 
                 if (block.Any())
                 {
-                    weekSets.Add(
-                        block.GroupBy(c => c.Id)
-                             .Select(g => g.First())
-                             .OrderBy(c => c.Id)
-                             .ToList()
-                    );
+                    var uniqueBlock = block
+                        .GroupBy(c => c.Id)
+                        .Select(g => g.First())
+                        .OrderBy(c => c.Id)
+                        .ToList();
+
+                    weekSets.Add(uniqueBlock);
                 }
             }
 
