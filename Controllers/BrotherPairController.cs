@@ -33,6 +33,23 @@ namespace TwoDPro3.Controllers
             ["Friday"] = 5
         };
 
+        private static readonly Dictionary<int, int> WeeksInYear = new()
+        {
+            [2013] = 52,
+            [2014] = 53,
+            [2015] = 52,
+            [2016] = 52,
+            [2017] = 52,
+            [2018] = 53,
+            [2019] = 52,
+            [2020] = 52,
+            [2021] = 52,
+            [2022] = 52,
+            [2023] = 52,
+            [2024] = 52,
+            [2025] = 53
+        };
+
         // ==========================================================
         // 1) ALL DAYS BROTHER PAIR SEARCH
         // GET api/BrotherPair/alldaybrotherpair?brotherpair=brotherpair
@@ -61,6 +78,28 @@ namespace TwoDPro3.Controllers
         // 2) WEEK SETS BROTHER PAIR SEARCH
         // GET api/BrotherPair/weeksetsbrotherpair?brotherpair=brotherpair&day=Monday
         // ==========================================================
+        // 🔹 Normalize year/week (handles cross-year boundaries)
+        private (int Year, int Week) NormalizeWeek(int year, int week)
+        {
+            int maxWeeks = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
+
+            if (week < 1)
+            {
+                int prevYear = year - 1;
+                int prevYearWeeks = WeeksInYear.ContainsKey(prevYear) ? WeeksInYear[prevYear] : 52;
+                return (prevYear, prevYearWeeks + week);
+            }
+
+            if (week > maxWeeks)
+            {
+                int nextYear = year + 1;
+                int nextYearWeeks = WeeksInYear.ContainsKey(nextYear) ? WeeksInYear[nextYear] : 52;
+                return (nextYear, week - maxWeeks);
+            }
+
+            return (year, week);
+        }
+
         [HttpGet("weeksetsbrotherpair")]
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
