@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TwoDPro3.Data;
+using TwoDPro3.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,9 @@ var connectionString = Environment.GetEnvironmentVariable("NEON_CONN_STRING")
 // Register DbContext with Neon
 builder.Services.AddDbContext<CalendarContext>(options =>
     options.UseNpgsql(connectionString));
+builder.Services.AddHostedService<MembershipExpiryService>();
+builder.Services.AddScoped<MembershipService>();
+
 
 // ----------------------
 // Standard API setup

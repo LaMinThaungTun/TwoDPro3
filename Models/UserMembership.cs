@@ -27,6 +27,7 @@ public class UserMembership
     [Column("end_date")]
     public DateTime EndDate { get; set; }
 
+
     [Column("is_active")]
     public bool IsActive { get; set; }
 
