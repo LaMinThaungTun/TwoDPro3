@@ -37,7 +37,7 @@ namespace TwoDPro3.Services
                 try
                 {
                     // Wait 24 hours before next check
-                    await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
+                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                 }
                 catch (TaskCanceledException)
                 {
