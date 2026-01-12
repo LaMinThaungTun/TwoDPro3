@@ -75,7 +75,7 @@ namespace TwoDPro3.Services
         private async Task DelayUntilNextCheckAsync(CancellationToken stoppingToken)
         {
             // Your desired daily check time in UTC (e.g., 05:30 AM UTC for Myanmar noon)
-            var targetTimeUtc = new TimeSpan(13, 00, 0);
+            var targetTimeUtc = new TimeSpan(14, 20, 0);
 
             var nowUtc = DateTime.UtcNow;
             var nextRunTimeUtc = nowUtc.Date + targetTimeUtc;
