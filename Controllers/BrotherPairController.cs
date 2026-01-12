@@ -32,7 +32,7 @@ namespace TwoDPro3.Controllers
             ["Thursday"] = 4,
             ["Friday"] = 5
         };
-
+        // Weeks per year
         private static readonly Dictionary<int, int> WeeksInYear = new()
         {
             [2013] = 52,
@@ -78,7 +78,33 @@ namespace TwoDPro3.Controllers
         // 2) WEEK SETS BROTHER PAIR SEARCH
         // GET api/BrotherPair/weeksetsbrotherpair?brotherpair=brotherpair&day=Monday
         // ==========================================================
-        // 🔹 Normalize year/week (handles cross-year boundaries)
+        [HttpGet("weeksetsbrotherpair")]
+        public async Task<ActionResult<List<List<Calendar>>>> SearchWeekSets(string brotherpair, string day)
+        {
+            if (brotherpair != "brotherpair")
+                return BadRequest("Parameter must be 'brotherpair'.");
+
+            if (!DayOrder.ContainsKey(day))
+                return BadRequest("Invalid day. Use Monday–Friday.");
+
+            var foundRows = await _context.Table1
+                .Where(c =>
+                    c.Days == day &&
+                    BrotherNumbers.Contains(c.Am) &&
+                    BrotherNumbers.Contains(c.Pm))
+                .OrderBy(c => c.Id)
+                .ToListAsync();
+
+            if (!foundRows.Any())
+                return NotFound("No brother number pairs found.");
+
+            var weekSets = await GetFourWeekSetsAsync(foundRows);
+            return Ok(weekSets);
+        }
+
+        // ==========================================================
+        // WEEK NORMALIZER
+        // ==========================================================
         private (int Year, int Week) NormalizeWeek(int year, int week)
         {
             int maxWeeks = WeeksInYear.ContainsKey(year) ? WeeksInYear[year] : 52;
@@ -86,72 +112,69 @@ namespace TwoDPro3.Controllers
             if (week < 1)
             {
                 int prevYear = year - 1;
-                int prevYearWeeks = WeeksInYear.ContainsKey(prevYear) ? WeeksInYear[prevYear] : 52;
-                return (prevYear, prevYearWeeks + week);
+                int prevWeeks = WeeksInYear.ContainsKey(prevYear) ? WeeksInYear[prevYear] : 52;
+                return (prevYear, prevWeeks + week);
             }
 
             if (week > maxWeeks)
             {
                 int nextYear = year + 1;
-                int nextYearWeeks = WeeksInYear.ContainsKey(nextYear) ? WeeksInYear[nextYear] : 52;
                 return (nextYear, week - maxWeeks);
             }
 
             return (year, week);
         }
 
-        [HttpGet("weeksetsbrotherpair")]
         private async Task<List<List<Calendar>>> GetFourWeekSetsAsync(List<Calendar> foundRows)
         {
             var weekSets = new List<List<Calendar>>();
-            var processedWeeks = new HashSet<(int year, int week)>(); // track processed base weeks
+            var processed = new HashSet<(int y, int w)>();
 
             foreach (var row in foundRows)
             {
-                var baseKey = (row.Years, row.Weeks);
-                if (processedWeeks.Contains(baseKey))
-                    continue;
+                var key = (row.Years, row.Weeks);
+                if (processed.Contains(key)) continue;
 
-                processedWeeks.Add(baseKey);
+                processed.Add(key);
 
-                var offsets = new int[] { -2, -1, 0, 1 };
+                int[] offsets = { -2, -1, 0, 1 };
+
                 var normalizedWeeks = offsets
-                    .Select(offset => NormalizeWeek(row.Years, row.Weeks + offset))
+                    .Select(o => NormalizeWeek(row.Years, row.Weeks + o))
                     .Distinct()
                     .ToList();
 
                 var block = new List<Calendar>();
 
-                foreach (var (normYear, normWeek) in normalizedWeeks)
+                foreach (var (yr, wk) in normalizedWeeks)
                 {
-                    var weekRows = await _context.Table1
-                        .Where(c => c.Years == normYear && c.Weeks == normWeek)
+                    var rows = await _context.Table1
+                        .Where(c => c.Years == yr && c.Weeks == wk)
                         .ToListAsync();
 
-                    if (weekRows.Any())
+                    if (rows.Any())
                     {
-                        var ordered = weekRows
-                            .OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
-                            .ThenBy(c => c.Id)
-                            .ToList();
-
-                        block.AddRange(ordered);
+                        block.AddRange(
+                            rows.OrderBy(c => DayOrder.ContainsKey(c.Days) ? DayOrder[c.Days] : 999)
+                                .ThenBy(c => c.Id)
+                        );
                     }
                 }
 
                 if (block.Any())
                 {
-                    var uniqueBlock = block
-                        .GroupBy(c => c.Id)
-                        .Select(g => g.First())
-                        .OrderBy(c => c.Id)
-                        .ToList();
-
-                    weekSets.Add(uniqueBlock);
+                    weekSets.Add(
+                        block.GroupBy(c => c.Id)
+                             .Select(g => g.First())
+                             .OrderBy(c => c.Id)
+                             .ToList()
+                    );
                 }
             }
 
-            return weekSets.OrderBy(b => b.Min(c => c.Id)).ToList();
+            return weekSets
+                .OrderBy(b => b.Min(c => c.Id))
+                .ToList();
         }
     }
 }
