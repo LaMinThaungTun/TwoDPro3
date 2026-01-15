@@ -1,12 +1,8 @@
-﻿using System.Net;
-
-namespace TwoDPro3.Middlewares
+﻿namespace TwoDPro3.Middlewares
 {
     public class AppVersionMiddleware
     {
         private readonly RequestDelegate _next;
-
-        // 🔒 Minimum allowed app version
         private const string MIN_SUPPORTED_VERSION = "1.0.5";
 
         public AppVersionMiddleware(RequestDelegate next)
@@ -18,21 +14,22 @@ namespace TwoDPro3.Middlewares
         {
             var path = context.Request.Path.Value?.ToLower();
 
-            // ✅ Allow Swagger completely
-            if (path != null && path.Contains("/swagger"))
+            // ✅ ALWAYS allow Swagger (Render-safe)
+            if (!string.IsNullOrEmpty(path) && path.Contains("swagger"))
             {
                 await _next(context);
                 return;
             }
 
-            // ✅ Allow health/admin (optional)
-            if (path != null && (path.Contains("/health") || path.Contains("/admin")))
+            // ✅ Allow health/admin
+            if (!string.IsNullOrEmpty(path) &&
+                (path.Contains("health") || path.Contains("admin")))
             {
                 await _next(context);
                 return;
             }
 
-            // 🔍 Require X-App-Version header
+            // 🔒 Require app version for real app only
             if (!context.Request.Headers.TryGetValue("X-App-Version", out var clientVersion))
             {
                 context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
@@ -50,21 +47,14 @@ namespace TwoDPro3.Middlewares
             await _next(context);
         }
 
-
-
-
         private bool IsVersionAllowed(string clientVersion)
         {
             try
             {
-                var client = new Version(clientVersion);
-                var minimum = new Version(MIN_SUPPORTED_VERSION);
-
-                return client >= minimum;
+                return new Version(clientVersion) >= new Version(MIN_SUPPORTED_VERSION);
             }
             catch
             {
-                // ❌ Invalid version format
                 return false;
             }
         }
