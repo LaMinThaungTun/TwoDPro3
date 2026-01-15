@@ -18,8 +18,12 @@ namespace TwoDPro3.Middlewares
         {
             var path = context.Request.Path.Value?.ToLower();
 
-            // ✅ Allow Swagger (VERY IMPORTANT)
-            if (path != null && path.StartsWith("/swagger"))
+            // ✅ Allow Swagger & static files
+            if (path != null &&
+                (path.StartsWith("/swagger") ||
+                 path.StartsWith("/favicon") ||
+                 path.StartsWith("/index") ||
+                 path == "/"))
             {
                 await _next(context);
                 return;
@@ -36,7 +40,8 @@ namespace TwoDPro3.Middlewares
             if (!context.Request.Headers.TryGetValue("X-App-Version", out var clientVersion))
             {
                 context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
-                await context.Response.WriteAsync("App version required. Please update your app.");
+                await context.Response.WriteAsync(
+                    "App version required. Please update your app.");
                 return;
             }
 
@@ -44,13 +49,15 @@ namespace TwoDPro3.Middlewares
             if (!IsVersionAllowed(clientVersion!))
             {
                 context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
-                await context.Response.WriteAsync("Your app version is outdated. Please update.");
+                await context.Response.WriteAsync(
+                    "Your app version is outdated. Please update.");
                 return;
             }
 
             // ✅ Version OK → continue
             await _next(context);
         }
+
 
 
         private bool IsVersionAllowed(string clientVersion)
