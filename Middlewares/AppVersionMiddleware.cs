@@ -14,6 +14,7 @@
         {
             var path = context.Request.Path.Value?.ToLower();
 
+            Console.WriteLine($"Request path: '{context.Request.Path.Value}'");
             // ✅ ALWAYS allow Swagger (Render-safe)
             if (!string.IsNullOrEmpty(path) && path.Contains("swagger"))
             {
