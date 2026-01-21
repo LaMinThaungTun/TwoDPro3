@@ -14,13 +14,21 @@
         {
             var path = context.Request.Path.Value?.ToLower();
 
-            Console.WriteLine($"Request path: '{context.Request.Path.Value}'");
+            //Console.WriteLine($"Request path: '{context.Request.Path.Value}'");
+
             // ✅ ALWAYS allow Swagger (Render-safe)
             if (!string.IsNullOrEmpty(path) && path.Contains("swagger"))
             {
                 await _next(context);
                 return;
             }
+
+            // ✅ Allow root & favicon (Swagger NEEDS these)
+            if (path == "/" || path == "/favicon.ico")
+            {
+                await _next(context);
+                return;
+            }  
 
             // ✅ Allow health/admin
             if (!string.IsNullOrEmpty(path) &&
