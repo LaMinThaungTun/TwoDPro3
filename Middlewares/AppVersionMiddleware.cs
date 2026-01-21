@@ -12,33 +12,30 @@
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var path = context.Request.Path.Value?.ToLower();
+            var path = context.Request.Path.Value?.ToLower() ?? "";
 
-            //Console.WriteLine($"Request path: '{context.Request.Path.Value}'");
-
-            // ✅ ALWAYS allow Swagger (Render-safe)
-            if (!string.IsNullOrEmpty(path) && path.Contains("swagger"))
+            // 🔓 ALWAYS allow Swagger UI + assets + json
+            if (path.StartsWith("/swagger"))
             {
                 await _next(context);
                 return;
             }
 
-            // ✅ Allow root & favicon (Swagger NEEDS these)
+            // 🔓 Allow root & favicon (Swagger NEEDS these)
             if (path == "/" || path == "/favicon.ico")
             {
                 await _next(context);
                 return;
-            }  
+            }
 
-            // ✅ Allow health/admin
-            if (!string.IsNullOrEmpty(path) &&
-                (path.Contains("health") || path.Contains("admin")))
+            // 🔓 Allow health/admin endpoints
+            if (path.StartsWith("/health") || path.StartsWith("/admin"))
             {
                 await _next(context);
                 return;
             }
 
-            // 🔒 Require app version for real app only
+            // 🔒 Require app version for ALL real API calls
             if (!context.Request.Headers.TryGetValue("X-App-Version", out var clientVersion))
             {
                 context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
