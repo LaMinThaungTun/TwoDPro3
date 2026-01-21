@@ -3,3 +3,7 @@
 bin/
 obj/
 out/
+
+# ASP.NET Core secrets
+appsettings.json
+appsettings.Development.json
