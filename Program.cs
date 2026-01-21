@@ -22,6 +22,8 @@ builder.Services.AddScoped<MembershipService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHttpClient<TwilioVerifyService>();
+
 
 var app = builder.Build();
 
