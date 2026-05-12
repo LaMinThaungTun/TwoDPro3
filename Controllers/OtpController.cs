@@ -7,21 +7,17 @@ namespace TwoDPro3.Controllers
     [Route("api/[controller]")]
     public class OtpController : ControllerBase
     {
-        private readonly TwilioVerifyService _twilio;
+        private readonly TelegramOtpService _telegram;
 
-        public OtpController(TwilioVerifyService twilio)
+        public OtpController(TelegramOtpService telegram)
         {
-            _twilio = twilio;
+            _telegram = telegram;
         }
 
-        // 1️⃣ SEND OTP
         [HttpPost("send")]
         public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Phone))
-                return BadRequest("Phone number required");
-
-            var ok = await _twilio.SendOtpAsync(request.Phone);
+            var ok = await _telegram.SendOtpAsync(request.TelegramChatId);
 
             if (!ok)
                 return StatusCode(500, "OTP sending failed");
@@ -29,19 +25,21 @@ namespace TwoDPro3.Controllers
             return Ok("OTP sent");
         }
 
-        // 2️⃣ VERIFY OTP
         [HttpPost("verify")]
         public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request)
         {
-            var ok = await _twilio.VerifyOtpAsync(request.Phone, request.Code);
+            var ok = await _telegram.VerifyOtpAsync(
+                request.TelegramChatId,
+                request.Code);
 
             if (!ok)
-                return BadRequest("Invalid OTP");
+                return BadRequest("Invalid or expired OTP");
 
             return Ok("OTP verified");
         }
     }
 
-    public record SendOtpRequest(string Phone);
-    public record VerifyOtpRequest(string Phone, string Code);
+    public record SendOtpRequest(long TelegramChatId);
+
+    public record VerifyOtpRequest(long TelegramChatId, string Code);
 }
