@@ -15,49 +15,37 @@
         {
             var path = context.Request.Path.Value?.ToLower() ?? "";
 
+            Console.WriteLine($"PATH: {path}");
+
             // --------------------------------------------------
-            // 🔓 ALWAYS ALLOW PUBLIC / EXTERNAL ENDPOINTS
+            // PUBLIC ROUTES (NO VERSION CHECK)
             // --------------------------------------------------
 
-            // Swagger UI + swagger.json + swagger assets
-            if (path.StartsWith("/swagger"))
+            var publicRoutes = new[]
+            {
+                "/swagger",
+                "/favicon.ico",
+                "/health",
+                "/admin",
+                "/api/telegram/webhook"
+            };
+
+            // allow root
+            if (path == "/")
             {
                 await _next(context);
                 return;
             }
 
-            // Root + favicon
-            if (path == "/" || path == "/favicon.ico")
-            {
-                await _next(context);
-                return;
-            }
-
-            // Health/Admin endpoints
-            if (path.StartsWith("/health") ||
-                path.StartsWith("/admin"))
-            {
-                await _next(context);
-                return;
-            }
-
-            // Telegram webhook
-            if (path.StartsWith("/api/telegram/webhook"))
-            {
-                await _next(context);
-                return;
-            }
-
-            // OPTIONAL:
-            // Allow Twilio callbacks if needed later
-            if (path.StartsWith("/api/twilio"))
+            // allow public routes
+            if (publicRoutes.Any(route => path.StartsWith(route)))
             {
                 await _next(context);
                 return;
             }
 
             // --------------------------------------------------
-            // 🔒 REQUIRE APP VERSION FOR REAL APP REQUESTS
+            // VERSION HEADER REQUIRED
             // --------------------------------------------------
 
             if (!context.Request.Headers.TryGetValue(
@@ -74,7 +62,7 @@
             }
 
             // --------------------------------------------------
-            // 🔒 VERSION VALIDATION
+            // VERSION VALIDATION
             // --------------------------------------------------
 
             if (!IsVersionAllowed(clientVersion!))
@@ -87,10 +75,6 @@
 
                 return;
             }
-
-            // --------------------------------------------------
-            // NEXT
-            // --------------------------------------------------
 
             await _next(context);
         }
