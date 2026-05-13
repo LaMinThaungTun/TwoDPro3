@@ -1,4 +1,6 @@
-﻿namespace TwoDPro3.Middlewares
+﻿using System.Globalization;
+
+namespace TwoDPro3.Middlewares
 {
     public class AppVersionMiddleware
     {
@@ -13,78 +15,67 @@
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var path = context.Request.Path.Value?.ToLower() ?? "";
+            var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
 
-            Console.WriteLine($"PATH: {path}");
+            Console.WriteLine($"[MIDDLEWARE] PATH: {path}");
 
             // --------------------------------------------------
-            // PUBLIC ROUTES (NO VERSION CHECK)
+            // 🔓 PUBLIC ROUTES (NO VERSION CHECK)
             // --------------------------------------------------
 
-            var publicRoutes = new[]
-            {
-                "/swagger",
-                "/favicon.ico",
-                "/health",
-                "/admin",
-                "/api/telegram/webhook"
-            };
-
-            // allow root
-            if (path == "/")
-            {
-                await _next(context);
-                return;
-            }
-
-            // allow public routes
-            if (publicRoutes.Any(route => path.StartsWith(route)))
+            if (IsPublicRoute(path))
             {
                 await _next(context);
                 return;
             }
 
             // --------------------------------------------------
-            // VERSION HEADER REQUIRED
+            // 🔒 VERSION HEADER REQUIRED FOR APP REQUESTS
             // --------------------------------------------------
 
-            if (!context.Request.Headers.TryGetValue(
-                    "X-App-Version",
-                    out var clientVersion))
+            if (!context.Request.Headers.TryGetValue("X-App-Version", out var clientVersion))
             {
-                context.Response.StatusCode =
-                    StatusCodes.Status426UpgradeRequired;
-
-                await context.Response.WriteAsync(
-                    "App version required. Please update your app.");
-
+                context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
+                await context.Response.WriteAsync("App version required. Please update your app.");
                 return;
             }
 
-            // --------------------------------------------------
-            // VERSION VALIDATION
-            // --------------------------------------------------
-
-            if (!IsVersionAllowed(clientVersion!))
+            if (!IsVersionValid(clientVersion!))
             {
-                context.Response.StatusCode =
-                    StatusCodes.Status426UpgradeRequired;
-
-                await context.Response.WriteAsync(
-                    "Your app version is outdated. Please update.");
-
+                context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
+                await context.Response.WriteAsync("Your app version is outdated. Please update.");
                 return;
             }
 
             await _next(context);
         }
 
-        private bool IsVersionAllowed(string clientVersion)
+        // --------------------------------------------------
+        // PUBLIC ROUTES (SAFE FOR TELEGRAM + SWAGGER + ETC)
+        // --------------------------------------------------
+
+        private bool IsPublicRoute(string path)
+        {
+            return
+                path.StartsWith("/swagger") ||
+                path.StartsWith("/favicon.ico") ||
+                path.StartsWith("/health") ||
+                path.StartsWith("/admin") ||
+                path.StartsWith("/api/telegram/webhook");
+        }
+
+        // --------------------------------------------------
+        // VERSION CHECK
+        // --------------------------------------------------
+
+        private bool IsVersionValid(string clientVersion)
         {
             try
             {
-                return new Version(clientVersion)
-                    >= new Version(MIN_SUPPORTED_VERSION);
+                var client = Version.Parse(clientVersion);
+                var min = Version.Parse(MIN_SUPPORTED_VERSION);
+
+                return client >= min;
             }
             catch
             {
