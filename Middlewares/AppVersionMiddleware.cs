@@ -3,6 +3,7 @@
     public class AppVersionMiddleware
     {
         private readonly RequestDelegate _next;
+
         private const string MIN_SUPPORTED_VERSION = "1.0.5";
 
         public AppVersionMiddleware(RequestDelegate next)
@@ -14,41 +15,82 @@
         {
             var path = context.Request.Path.Value?.ToLower() ?? "";
 
-            // 🔓 ALWAYS allow Swagger UI + assets + json
+            // --------------------------------------------------
+            // 🔓 ALWAYS ALLOW PUBLIC / EXTERNAL ENDPOINTS
+            // --------------------------------------------------
+
+            // Swagger UI + swagger.json + swagger assets
             if (path.StartsWith("/swagger"))
             {
                 await _next(context);
                 return;
             }
 
-            // 🔓 Allow root & favicon (Swagger NEEDS these)
+            // Root + favicon
             if (path == "/" || path == "/favicon.ico")
             {
                 await _next(context);
                 return;
             }
 
-            // 🔓 Allow health/admin endpoints
-            if (path.StartsWith("/health") || path.StartsWith("/admin"))
+            // Health/Admin endpoints
+            if (path.StartsWith("/health") ||
+                path.StartsWith("/admin"))
             {
                 await _next(context);
                 return;
             }
 
-            // 🔒 Require app version for ALL real API calls
-            if (!context.Request.Headers.TryGetValue("X-App-Version", out var clientVersion))
+            // Telegram webhook
+            if (path.StartsWith("/api/telegram/webhook"))
             {
-                context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
-                await context.Response.WriteAsync("App version required. Please update your app.");
+                await _next(context);
                 return;
             }
 
-            if (!IsVersionAllowed(clientVersion!))
+            // OPTIONAL:
+            // Allow Twilio callbacks if needed later
+            if (path.StartsWith("/api/twilio"))
             {
-                context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
-                await context.Response.WriteAsync("Your app version is outdated. Please update.");
+                await _next(context);
                 return;
             }
+
+            // --------------------------------------------------
+            // 🔒 REQUIRE APP VERSION FOR REAL APP REQUESTS
+            // --------------------------------------------------
+
+            if (!context.Request.Headers.TryGetValue(
+                    "X-App-Version",
+                    out var clientVersion))
+            {
+                context.Response.StatusCode =
+                    StatusCodes.Status426UpgradeRequired;
+
+                await context.Response.WriteAsync(
+                    "App version required. Please update your app.");
+
+                return;
+            }
+
+            // --------------------------------------------------
+            // 🔒 VERSION VALIDATION
+            // --------------------------------------------------
+
+            if (!IsVersionAllowed(clientVersion!))
+            {
+                context.Response.StatusCode =
+                    StatusCodes.Status426UpgradeRequired;
+
+                await context.Response.WriteAsync(
+                    "Your app version is outdated. Please update.");
+
+                return;
+            }
+
+            // --------------------------------------------------
+            // NEXT
+            // --------------------------------------------------
 
             await _next(context);
         }
@@ -57,7 +99,8 @@
         {
             try
             {
-                return new Version(clientVersion) >= new Version(MIN_SUPPORTED_VERSION);
+                return new Version(clientVersion)
+                    >= new Version(MIN_SUPPORTED_VERSION);
             }
             catch
             {
