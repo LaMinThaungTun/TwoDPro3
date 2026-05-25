@@ -31,6 +31,9 @@ namespace TwoDPro3.Controllers
 
                 var message = update?.Message;
 
+                Console.WriteLine("RAW MESSAGE:");
+                Console.WriteLine(message?.Text);
+
                 if (message == null ||
                     string.IsNullOrWhiteSpace(message.Text))
                 {
