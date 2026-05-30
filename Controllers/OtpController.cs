@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TwoDPro3.Data;
 using TwoDPro3.Services;
 
 namespace TwoDPro3.Controllers
@@ -8,38 +10,45 @@ namespace TwoDPro3.Controllers
     public class OtpController : ControllerBase
     {
         private readonly TelegramOtpService _telegram;
+        private readonly AppDbContext _db;
 
-        public OtpController(TelegramOtpService telegram)
+        public OtpController(
+            TelegramOtpService telegram,
+            AppDbContext db)
         {
             _telegram = telegram;
-        }
-
-        [HttpPost("send")]
-        public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
-        {
-            var ok = await _telegram.SendOtpAsync(request.TelegramChatId);
-
-            if (!ok)
-                return StatusCode(500, "OTP sending failed");
-
-            return Ok("OTP sent");
+            _db = db;
         }
 
         [HttpPost("verify")]
-        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request)
+        public async Task<IActionResult> VerifyOtp(
+            [FromBody] VerifyOtpRequest request)
         {
+            var link = await _db.UserTelegramLinks
+                .FirstOrDefaultAsync(x =>
+                    x.PhoneNumber == request.PhoneNumber);
+
+            if (link == null)
+            {
+                return BadRequest(
+                    "Telegram account not linked");
+            }
+
             var ok = await _telegram.VerifyOtpAsync(
-                request.TelegramChatId,
+                link.TelegramChatId,
                 request.Code);
 
             if (!ok)
-                return BadRequest("Invalid or expired OTP");
+            {
+                return BadRequest(
+                    "Invalid or expired OTP");
+            }
 
             return Ok("OTP verified");
         }
     }
 
-    public record SendOtpRequest(long TelegramChatId);
-
-    public record VerifyOtpRequest(long TelegramChatId, string Code);
+    public record VerifyOtpRequest(
+        string PhoneNumber,
+        string Code);
 }
