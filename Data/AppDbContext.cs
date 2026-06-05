@@ -17,6 +17,8 @@ namespace TwoDPro3.Data
 
         public DbSet<UserTelegramLink> UserTelegramLinks => Set<UserTelegramLink>();
 
+        public DbSet<PendingTelegramLink> PendingTelegramLinks { get; set; }
+
 
         // ----------------------
         // Model Configuration
