@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using TwoDPro3.Data;
 using TwoDPro3.Models;
 
-using Microsoft.AspNetCore.Mvc;
 
 namespace TwoDPro3.Controllers
 {
