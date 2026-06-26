@@ -58,11 +58,11 @@ namespace TwoDPro3.Controllers
                     c.AmDgTwo != ClosedCode &&
                     c.PmDgOne != ClosedCode &&
                     (
-                        (c.AmDgOne == "0" && c.PmDgTwo == "7") || (c.AmDgOne == "7" && c.PmDgTwo == "0") ||
-                        (c.AmDgOne == "1" && c.PmDgTwo == "8") || (c.AmDgOne == "8" && c.PmDgTwo == "1") ||
-                        (c.AmDgOne == "2" && c.PmDgTwo == "4") || (c.AmDgOne == "4" && c.PmDgTwo == "2") ||
-                        (c.AmDgOne == "3" && c.PmDgTwo == "5") || (c.AmDgOne == "5" && c.PmDgTwo == "3") ||
-                        (c.AmDgOne == "6" && c.PmDgTwo == "9") || (c.AmDgOne == "9" && c.PmDgTwo == "6")
+                        (c.AmDgTwo == "0" && c.PmDgOne == "7") || (c.AmDgTwo == "7" && c.PmDgOne == "0") ||
+                        (c.AmDgTwo == "1" && c.PmDgOne == "8") || (c.AmDgTwo == "8" && c.PmDgOne == "1") ||
+                        (c.AmDgTwo == "2" && c.PmDgOne == "4") || (c.AmDgTwo == "4" && c.PmDgOne == "2") ||
+                        (c.AmDgTwo == "3" && c.PmDgOne == "5") || (c.AmDgTwo == "5" && c.PmDgOne == "3") ||
+                        (c.AmDgTwo == "6" && c.PmDgOne == "9") || (c.AmDgTwo == "9" && c.PmDgOne == "6")
                     )
                     
                 )
@@ -94,11 +94,11 @@ namespace TwoDPro3.Controllers
                     c.AmDgTwo != ClosedCode &&
                     c.PmDgOne != ClosedCode &&
                     (
-                        (c.AmDgOne == "0" && c.PmDgTwo == "7") || (c.AmDgOne == "7" && c.PmDgTwo == "0") ||
-                        (c.AmDgOne == "1" && c.PmDgTwo == "8") || (c.AmDgOne == "8" && c.PmDgTwo == "1") ||
-                        (c.AmDgOne == "2" && c.PmDgTwo == "4") || (c.AmDgOne == "4" && c.PmDgTwo == "2") ||
-                        (c.AmDgOne == "3" && c.PmDgTwo == "5") || (c.AmDgOne == "5" && c.PmDgTwo == "3") ||
-                        (c.AmDgOne == "6" && c.PmDgTwo == "9") || (c.AmDgOne == "9" && c.PmDgTwo == "6")
+                        (c.AmDgTwo == "0" && c.PmDgOne == "7") || (c.AmDgTwo == "7" && c.PmDgOne == "0") ||
+                        (c.AmDgTwo == "1" && c.PmDgOne == "8") || (c.AmDgTwo == "8" && c.PmDgOne == "1") ||
+                        (c.AmDgTwo == "2" && c.PmDgOne == "4") || (c.AmDgTwo == "4" && c.PmDgOne == "2") ||
+                        (c.AmDgTwo == "3" && c.PmDgOne == "5") || (c.AmDgTwo == "5" && c.PmDgOne == "3") ||
+                        (c.AmDgTwo == "6" && c.PmDgOne == "9") || (c.AmDgTwo == "9" && c.PmDgOne == "6")
                     )
                 )
                 .OrderBy(c => c.Id)
