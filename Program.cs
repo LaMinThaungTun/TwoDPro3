@@ -26,6 +26,8 @@ builder.Services.AddScoped<MembershipService>();
 
 builder.Services.AddScoped<TelegramOtpService>();
 
+builder.Services.AddScoped<AgentService>();
+
 builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();

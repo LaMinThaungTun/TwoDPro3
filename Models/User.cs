@@ -36,5 +36,11 @@ namespace TwoDPro3.Models
 
         [Column("last_login_at")]
         public DateTime? LastLoginAt { get; set; }
+
+        [Column("agent_id")]
+        public int? AgentId { get; set; }
+
+        [ForeignKey(nameof(AgentId))]
+        public Agent? Agent { get; set; }
     }
 }

@@ -15,9 +15,17 @@ namespace TwoDPro3.Data
 
         public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
 
+        public DbSet<User> Users { get; set; }
+
         public DbSet<UserTelegramLink> UserTelegramLinks => Set<UserTelegramLink>();
 
         public DbSet<PendingTelegramLink> PendingTelegramLinks { get; set; }
+
+        public DbSet<Agent> Agents { get; set; }
+
+        public DbSet<MembershipApplication> MembershipApplications { get; set; }
+
+        public DbSet<AgentRotation> AgentRotations { get; set; }
 
 
         // ----------------------
