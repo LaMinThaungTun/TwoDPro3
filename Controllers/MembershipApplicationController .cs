@@ -15,11 +15,7 @@ namespace TwoDPro3.Controllers
             _agentService = agentService;
         }
 
-        // --------------------------------------------------
-        // APPLY FOR MEMBERSHIP (MAIN ENTRY FROM MAUI)
-        // GET api/apply
-        // --------------------------------------------------
-        [HttpPost("apply")]
+       [HttpPost("apply")]
         public async Task<ActionResult<AgentContactResponse>> ApplyMembership()
         {
             try
@@ -40,11 +36,5 @@ namespace TwoDPro3.Controllers
         }
     }
 
-    // --------------------------------------------------
-    // Request DTO (only for this endpoint)
-    // --------------------------------------------------
-    public class ApplyMembershipRequest
-    {
-        public int UserId { get; set; }
-    }
+    
 }
