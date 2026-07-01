@@ -20,16 +20,18 @@ namespace TwoDPro3.Controllers
         // GET api/apply
         // --------------------------------------------------
         [HttpPost("apply")]
-        public async Task<ActionResult<AgentContactResponse>> ApplyMembership([FromBody] ApplyMembershipRequest request)
+        public async Task<ActionResult<AgentContactResponse>> ApplyMembership()
         {
             try
             {
-                if (request.UserId <= 0)
-                    return BadRequest("Invalid user id.");
+                var agent = await _agentService.GetNextRoundRobinAgentAsync();
 
-                var result = await _agentService.AssignAgentAsync(request.UserId);
-
-                return Ok(result);
+                return Ok(new AgentContactResponse
+                {
+                    AgentId = agent.Id,
+                    AgentName = agent.Name,
+                    TelegramUrl = agent.TelegramUrl
+                });
             }
             catch (Exception ex)
             {
