@@ -17,20 +17,26 @@ namespace TwoDPro3.Controllers
         }
 
         [HttpGet("contact")]
-        public async Task<ActionResult<AdminContactResponse>> GetContact()
+        public async Task<ActionResult<AdminContactResponse>> GetContact(string contact)
         {
-            var admin = await _context.AdminContacts
+
+            if (contact != "contact")
+                return BadRequest();
+
+
+            var admin = await _context.AdminContact
+
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.IsActive);
+                .FirstOrDefaultAsync(x => x.is_active);
 
             if (admin == null)
                 return NotFound("No active admin found.");
 
             return Ok(new AdminContactResponse
             {
-                AdminName = admin.AdminName,
-                TelegramUrl = admin.TelegramUrl,
-                Phone = admin.Phone
+                AdminName = admin.admin_name,
+                TelegramUrl = admin.telegram_url,
+                Phone = admin.phone
             });
         }
     }
