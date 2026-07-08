@@ -57,10 +57,10 @@ namespace TwoDPro3.Middlewares
         private bool IsPublicRoute(string path)
         {
             return
-                path.StartsWith("/swagger") ||
+                path.StartsWith("/api/swagger") ||
                 path.StartsWith("/favicon.ico") ||
                 path.StartsWith("/health") ||
-                path.StartsWith("/admin") ||
+                path.StartsWith("/api/admin") ||
                 path.StartsWith("/api/telegram/webhook");
         }
 

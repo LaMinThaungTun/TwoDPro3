@@ -27,6 +27,8 @@ namespace TwoDPro3.Data
 
         public DbSet<AgentRotation> AgentRotations { get; set; }
 
+        public DbSet<AdminContact> AdminContacts { get; set; }
+
 
         // ----------------------
         // Model Configuration
