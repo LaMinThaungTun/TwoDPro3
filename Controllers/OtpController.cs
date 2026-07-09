@@ -33,6 +33,15 @@ namespace TwoDPro3.Controllers
         public async Task<IActionResult> VerifyOtp(
             [FromBody] VerifyOtpRequest request)
         {
+
+            Console.WriteLine("========== VERIFY REQUEST ==========");
+            Console.WriteLine($"UserName   = {request.UserName}");
+            Console.WriteLine($"Phone      = {request.PhoneNumber}");
+            Console.WriteLine($"Password   = {request.Password}");
+            Console.WriteLine($"Code       = {request.Code}");
+            Console.WriteLine("====================================");
+
+
             try
             {
                 // -----------------------------
