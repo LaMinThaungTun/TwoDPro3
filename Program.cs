@@ -51,7 +51,7 @@ app.UseSwaggerUI();
 app.UseHttpsRedirection();
 
 // 🔐 VERSION PROTECTION
-app.UseMiddleware<AppVersionMiddleware>();
+//app.UseMiddleware<AppVersionMiddleware>();
 
 app.UseAuthorization();
 
