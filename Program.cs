@@ -5,20 +5,27 @@ using TwoDPro3.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 // ----------------------
 // Connection string (Neon)
+// ----------------------
+
 var connectionString =
     Environment.GetEnvironmentVariable("NEON_CONN_STRING")
     ?? builder.Configuration.GetConnectionString("CalendarContext");
 
+
 // ----------------------
-// Services
+// Database
+// ----------------------
 
 builder.Services.AddDbContext<CalendarContext>(options =>
     options.UseNpgsql(connectionString));
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+
+// ----------------------
+// Services
+// ----------------------
 
 builder.Services.AddHostedService<MembershipExpiryService>();
 
@@ -28,33 +35,44 @@ builder.Services.AddScoped<TelegramOtpService>();
 
 builder.Services.AddScoped<AgentService>();
 
+builder.Services.AddHttpClient<TwilioVerifyService>();
+
+
+// ----------------------
+// MVC / Swagger
+// ----------------------
+
 builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddHttpClient<TwilioVerifyService>();
+
 
 var app = builder.Build();
 
+
 // ----------------------
-// Dev tools
+// Swagger
+// ----------------------
 
 app.UseSwagger();
 
 app.UseSwaggerUI();
 
+
 // ----------------------
-// Middleware pipeline
+// Middleware
+// ----------------------
 
 app.UseHttpsRedirection();
 
-// 🔐 VERSION PROTECTION
 //app.UseMiddleware<AppVersionMiddleware>();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
 
 app.Run();

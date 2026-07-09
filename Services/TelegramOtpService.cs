@@ -10,7 +10,7 @@ namespace TwoDPro3.Services
     public class TelegramOtpService
     {
         private readonly IConfiguration _config;
-        private readonly AppDbContext _db;
+        private readonly CalendarContext _db;
 
         public TelegramOtpService(IConfiguration config, AppDbContext db)
         {

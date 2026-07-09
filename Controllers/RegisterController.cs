@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using TwoDPro3.Data;
 using TwoDPro3.Models;
 using TwoDPro3.Models.Requests;
-using TwoDPro3.Models.Responses;
 using BCrypt.Net;
 
 namespace TwoDPro3.Controllers
@@ -19,86 +18,157 @@ namespace TwoDPro3.Controllers
             _context = context;
         }
 
+
+        // =====================================================
+        // START REGISTRATION
+        // Creates PendingRegistration only
+        // =====================================================
+
         [HttpPost]
-        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        public async Task<IActionResult> Register(
+            [FromBody] RegisterRequest request)
         {
-            // ---------- Validation ----------
-            if (string.IsNullOrWhiteSpace(request.UserName))
-                return BadRequest("User name required");
-
-            if (string.IsNullOrWhiteSpace(request.Password))
-                return BadRequest("Password required");
-
-            if (string.IsNullOrWhiteSpace(request.Email) &&
-                string.IsNullOrWhiteSpace(request.PhoneNumber))
-                return BadRequest("Email or phone number required");
-
-            var userName = request.UserName.Trim();
-            var email = request.Email?.Trim().ToLower();
-            var phone = request.PhoneNumber?.Trim();
-
-            // ---------- Duplicate Check (SAFE) ----------
-            bool exists = await _context.Users.AnyAsync(u =>
-                u.UserName == userName ||
-                (!string.IsNullOrEmpty(email) && u.Email == email) ||
-                (!string.IsNullOrEmpty(phone) && u.PhoneNumber == phone)
-            );
-
-            if (exists)
-                return Conflict("User already exists");
-
-            // ---------- Get Free Trial Plan ----------
-            var freePlan = await _context.MembershipPlans
-                .FirstOrDefaultAsync(p => p.Name == "FREE_TRIAL" && p.IsActive);
-
-            if (freePlan == null)
-                return StatusCode(500, "Free trial plan not configured");
-
-            // ---------- Transaction ----------
-            using var transaction = await _context.Database.BeginTransactionAsync();
-
             try
             {
-                var user = new User
-                {
-                    UserName = userName,
-                    Email = email,
-                    PhoneNumber = phone,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),                    
-                    IsActive = true,
-                    IsVerified = false,
-                    CreatedAt = DateTime.UtcNow
-                };
+                // -----------------------------
+                // Validation
+                // -----------------------------
 
-                _context.Users.Add(user);
+                if (string.IsNullOrWhiteSpace(request.UserName))
+                    return BadRequest("User name required");
+
+
+                if (string.IsNullOrWhiteSpace(request.Password))
+                    return BadRequest("Password required");
+
+
+                if (string.IsNullOrWhiteSpace(request.PhoneNumber))
+                    return BadRequest(
+                        "Phone number required");
+
+
+                var userName =
+                    request.UserName.Trim();
+
+
+                var email =
+                    request.Email?
+                    .Trim()
+                    .ToLower();
+
+
+                var phone =
+                    request.PhoneNumber.Trim();
+
+
+
+                // -----------------------------
+                // Check existing account
+                // -----------------------------
+
+                bool exists =
+                    await _context.Users.AnyAsync(u =>
+                        u.UserName == userName ||
+
+                        (!string.IsNullOrEmpty(email)
+                         && u.Email == email) ||
+
+                        (!string.IsNullOrEmpty(phone)
+                         && u.PhoneNumber == phone)
+                    );
+
+
+                if (exists)
+                {
+                    return Conflict(
+                        "User already exists");
+                }
+
+
+
+                // -----------------------------
+                // Remove old pending registration
+                // same phone
+                // -----------------------------
+
+                var oldPending =
+                    await _context.PendingRegistrations
+                    .Where(x =>
+                        x.PhoneNumber == phone &&
+                        !x.IsCompleted)
+                    .ToListAsync();
+
+
+                if (oldPending.Any())
+                {
+                    _context.PendingRegistrations
+                        .RemoveRange(oldPending);
+
+                    await _context.SaveChangesAsync();
+                }
+
+
+
+                // -----------------------------
+                // Create pending registration
+                // -----------------------------
+
+                var pending =
+                    new PendingRegistration
+                    {
+                        UserName = userName,
+
+                        Email = email,
+
+                        PhoneNumber = phone,
+
+                        PasswordHash =
+                            BCrypt.Net.BCrypt
+                            .HashPassword(
+                                request.Password),
+
+                        CreatedAt =
+                            DateTime.UtcNow,
+
+                        ExpiresAt =
+                            DateTime.UtcNow
+                            .AddMinutes(10),
+
+                        IsCompleted = false
+                    };
+
+
+                _context.PendingRegistrations
+                    .Add(pending);
+
+
                 await _context.SaveChangesAsync();
 
-                var membership = new UserMembership
-                {
-                    UserId = user.Id,
-                    MembershipPlanId = freePlan.Id,
-                    StartDate = DateTime.UtcNow.Date,
-                    EndDate = DateTime.UtcNow.Date.AddDays(freePlan.DurationDays),
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
-                };
 
-                _context.UserMemberships.Add(membership);
-                await _context.SaveChangesAsync();
 
-                await transaction.CommitAsync();
+                // -----------------------------
+                // Return success
+                // MAUI opens Telegram next
+                // -----------------------------
 
-                return Ok(new RegisterResponse
+                return Ok(new
                 {
                     Success = true,
-                    Message = "Registered successfully",
-                    UserId = user.Id
+
+                    Message =
+                    "Please verify Telegram OTP",
+
+                    PhoneNumber = phone
                 });
+
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return StatusCode(500, $"Registration failed: {ex.Message}");
+                Console.WriteLine(ex);
+
+                return StatusCode(
+                    500,
+                    "Registration failed");
             }
         }
     }

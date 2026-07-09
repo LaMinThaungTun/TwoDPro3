@@ -1,18 +1,25 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TwoDPro3.Models
 {
+    [Table("user_telegram_links")]
     public class UserTelegramLink
     {
         [Key]
+        [Column("id")]
         public int Id { get; set; }
 
-        [Required]
-        [MaxLength(20)]
+
+        [Column("phone_number")]
         public string PhoneNumber { get; set; } = "";
 
+
+        [Column("telegram_chat_id")]
         public long TelegramChatId { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
     }
 }
