@@ -7,7 +7,7 @@ namespace TwoDPro3.Models
     public class PendingRegistration
     {
         [Key]
-        public int Id { get; set; }
+        public int id { get; set; }
 
         [Column("user_name")]
         public string UserName { get; set; } = "";

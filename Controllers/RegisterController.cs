@@ -164,11 +164,13 @@ namespace TwoDPro3.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                Console.WriteLine("==============================");
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine("==============================");
 
                 return StatusCode(
                     500,
-                    "Registration failed");
+                    ex.ToString());
             }
         }
     }

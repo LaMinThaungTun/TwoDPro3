@@ -48,7 +48,11 @@ builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddDbContext<CalendarContext>(options =>
+    options.UseNpgsql(connectionString));
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
 
 var app = builder.Build();
 
