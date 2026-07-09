@@ -26,7 +26,7 @@ namespace TwoDPro3.Controllers
 
 
         // =====================================================
-        // VERIFY OTP AND COMPLETE REGISTRATION
+        // VERIFY OTP AND CREATE USER
         // =====================================================
 
         [HttpPost("verify")]
@@ -35,18 +35,55 @@ namespace TwoDPro3.Controllers
         {
             try
             {
-                // -----------------------------------------
-                // 1. Find Telegram link
-                // -----------------------------------------
+                // -----------------------------
+                // Validation
+                // -----------------------------
 
-                var link =
+                if (string.IsNullOrWhiteSpace(request.UserName))
+                    return BadRequest("User name required");
+
+
+                if (string.IsNullOrWhiteSpace(request.PhoneNumber))
+                    return BadRequest("Phone number required");
+
+
+                if (string.IsNullOrWhiteSpace(request.Password))
+                    return BadRequest("Password required");
+
+
+                if (string.IsNullOrWhiteSpace(request.Code))
+                    return BadRequest("OTP required");
+
+
+
+                string userName =
+                    request.UserName.Trim();
+
+
+                string phone =
+                    request.PhoneNumber.Trim();
+
+
+                string? email =
+                    request.Email?
+                    .Trim()
+                    .ToLower();
+
+
+
+
+                // =================================================
+                // 1. FIND TELEGRAM LINK
+                // =================================================
+
+                var telegramLink =
                     await _db.UserTelegramLinks
                     .FirstOrDefaultAsync(x =>
-                        x.PhoneNumber ==
-                        request.PhoneNumber);
+                        x.PhoneNumber == phone);
 
 
-                if (link == null)
+
+                if (telegramLink == null)
                 {
                     return BadRequest(
                         "Telegram account not linked");
@@ -54,17 +91,20 @@ namespace TwoDPro3.Controllers
 
 
 
-                // -----------------------------------------
-                // 2. Verify OTP
-                // -----------------------------------------
 
-                var ok =
+                // =================================================
+                // 2. VERIFY OTP
+                // =================================================
+
+                bool verified =
                     await _telegram.VerifyOtpAsync(
-                        link.TelegramChatId,
+                        telegramLink.TelegramChatId,
+                        phone,
                         request.Code);
 
 
-                if (!ok)
+
+                if (!verified)
                 {
                     return BadRequest(
                         "Invalid or expired OTP");
@@ -72,35 +112,21 @@ namespace TwoDPro3.Controllers
 
 
 
-                // -----------------------------------------
-                // 3. Find pending registration
-                // -----------------------------------------
-
-                var pending =
-                    await _db.PendingRegistrations
-                    .FirstOrDefaultAsync(x =>
-                        x.PhoneNumber ==
-                        request.PhoneNumber &&
-                        !x.IsCompleted);
 
 
+                // =================================================
+                // 3. CHECK DUPLICATE USER
+                // =================================================
 
-                if (pending == null)
-                {
-                    return BadRequest(
-                        "Pending registration not found");
-                }
-
-
-
-                // -----------------------------------------
-                // 4. Check user again
-                // -----------------------------------------
-
-                var exists =
+                bool exists =
                     await _db.Users.AnyAsync(x =>
-                        x.PhoneNumber ==
-                        pending.PhoneNumber);
+                        x.UserName == userName ||
+
+                        x.PhoneNumber == phone ||
+
+                        (!string.IsNullOrEmpty(email)
+                        && x.Email == email));
+
 
 
                 if (exists)
@@ -111,6 +137,8 @@ namespace TwoDPro3.Controllers
 
 
 
+
+
                 using var transaction =
                     await _db.Database
                     .BeginTransactionAsync();
@@ -118,24 +146,24 @@ namespace TwoDPro3.Controllers
 
                 try
                 {
-                    // -------------------------------------
-                    // 5. Create User
-                    // -------------------------------------
+                    // =================================================
+                    // 4. CREATE USER
+                    // =================================================
 
                     var user =
                         new User
                         {
-                            UserName =
-                                pending.UserName,
+                            UserName = userName,
 
-                            Email =
-                                pending.Email,
+                            Email = email,
 
-                            PhoneNumber =
-                                pending.PhoneNumber,
+                            PhoneNumber = phone,
 
                             PasswordHash =
-                                pending.PasswordHash,
+                                BCrypt.Net.BCrypt
+                                .HashPassword(
+                                    request.Password),
+
 
                             IsActive = true,
 
@@ -146,23 +174,28 @@ namespace TwoDPro3.Controllers
                         };
 
 
+
                     _db.Users.Add(user);
+
 
                     await _db.SaveChangesAsync();
 
 
 
-                    // -------------------------------------
-                    // 6. Add FREE TRIAL membership
-                    // -------------------------------------
+
+
+
+                    // =================================================
+                    // 5. CREATE FREE TRIAL MEMBERSHIP
+                    // =================================================
 
                     var freePlan =
                         await _db.MembershipPlans
                         .FirstOrDefaultAsync(x =>
-                            x.Name ==
-                            "FREE_TRIAL"
+                            x.Name == "FREE_TRIAL"
                             &&
                             x.IsActive);
+
 
 
                     if (freePlan == null)
@@ -185,36 +218,40 @@ namespace TwoDPro3.Controllers
                             StartDate =
                                 DateTime.UtcNow.Date,
 
+
                             EndDate =
                                 DateTime.UtcNow.Date
                                 .AddDays(
                                     freePlan.DurationDays),
 
+
                             IsActive = true,
+
 
                             CreatedAt =
                                 DateTime.UtcNow
                         };
 
 
+
                     _db.UserMemberships
                         .Add(membership);
-
-
-                    // -------------------------------------
-                    // 7. Mark registration completed
-                    // -------------------------------------
-
-                    pending.IsCompleted = true;
 
 
 
                     await _db.SaveChangesAsync();
 
 
+
                     await transaction.CommitAsync();
 
 
+
+
+
+                    // =================================================
+                    // SUCCESS
+                    // =================================================
 
                     return Ok(new
                     {
@@ -231,13 +268,14 @@ namespace TwoDPro3.Controllers
                 catch
                 {
                     await transaction.RollbackAsync();
+
                     throw;
                 }
 
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                Console.WriteLine(ex.ToString());
 
                 return StatusCode(
                     500,
@@ -248,7 +286,27 @@ namespace TwoDPro3.Controllers
 
 
 
-    public record VerifyOtpRequest(
-        string PhoneNumber,
-        string Code);
+    // =====================================================
+    // MAUI REQUEST MODEL
+    // =====================================================
+
+    public class VerifyOtpRequest
+    {
+        public string UserName { get; set; }
+            = "";
+
+        public string? Email { get; set; }
+
+
+        public string PhoneNumber { get; set; }
+            = "";
+
+
+        public string Password { get; set; }
+            = "";
+
+
+        public string Code { get; set; }
+            = "";
+    }
 }

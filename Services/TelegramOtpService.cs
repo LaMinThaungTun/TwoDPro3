@@ -12,121 +12,265 @@ namespace TwoDPro3.Services
         private readonly IConfiguration _config;
         private readonly CalendarContext _db;
 
-        public TelegramOtpService(IConfiguration config, CalendarContext db)
+
+        public TelegramOtpService(
+            IConfiguration config,
+            CalendarContext db)
         {
             _config = config;
             _db = db;
         }
 
-        // -------------------------------------------------
-        // OTP GENERATION (ONLY FOR REGISTRATION CONFIRMATION)
-        // -------------------------------------------------
-        public async Task<bool> SendOtpAsync(long chatId)
+
+
+        // =====================================================
+        // GENERATE OTP AND SEND TO TELEGRAM
+        // =====================================================
+
+        public async Task<bool> SendOtpAsync(
+            long chatId,
+            string phoneNumber)
         {
             try
             {
-                var otp = RandomNumberGenerator
+                var otp =
+                    RandomNumberGenerator
                     .GetInt32(100000, 999999)
                     .ToString();
 
-                var otpEntry = new OtpCode
-                {
-                    TelegramChatId = chatId,
-                    Code = otp,
-                    CreatedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddMinutes(3),
-                    IsUsed = false
-                };
+
+
+                var otpEntry =
+                    new OtpCode
+                    {
+                        TelegramChatId = chatId,
+
+                        PhoneNumber = phoneNumber,
+
+                        Code = otp,
+
+                        CreatedAt =
+                            DateTime.UtcNow,
+
+                        ExpiresAt =
+                            DateTime.UtcNow
+                            .AddMinutes(3),
+
+                        IsUsed = false
+                    };
+
+
 
                 _db.OtpCodes.Add(otpEntry);
+
+
                 await _db.SaveChangesAsync();
+
+
+
+                Console.WriteLine(
+                    "========== OTP CREATED ==========");
+
+                Console.WriteLine(
+                    $"Chat ID : {chatId}");
+
+                Console.WriteLine(
+                    $"Phone   : {phoneNumber}");
+
+                Console.WriteLine(
+                    $"OTP     : {otp}");
+
+
 
                 return await SendTelegramMessageAsync(
                     chatId,
-                    $"Your OTP code: {otp}\nValid for 3 minutes.");
+                    $"Your OTP code: {otp}\n\n" +
+                    "Valid for 3 minutes.");
+
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
+
                 return false;
             }
         }
 
-        // -------------------------------------------------
-        // VERIFY OTP (REGISTRATION ONLY)
-        // -------------------------------------------------
-        public async Task<bool> VerifyOtpAsync(long chatId, string code)
+
+
+
+
+        // =====================================================
+        // VERIFY OTP
+        // =====================================================
+
+        public async Task<bool> VerifyOtpAsync(
+            long chatId,
+            string phoneNumber,
+            string code)
         {
-            Console.WriteLine("========== VERIFY OTP ==========");
-            Console.WriteLine($"ChatId : {chatId}");
-            Console.WriteLine($"Code   : {code}");
-
-            var all = await _db.OtpCodes
-                .Where(x => x.TelegramChatId == chatId)
-                .ToListAsync();
-
-            Console.WriteLine($"Found {all.Count} OTP(s)");
-
-            foreach (var x in all)
+            try
             {
-                Console.WriteLine($"DB Code={x.Code}, Used={x.IsUsed}, Expire={x.ExpiresAt}");
+                Console.WriteLine(
+                    "========== VERIFY OTP ==========");
+
+                Console.WriteLine(
+                    $"Chat ID : {chatId}");
+
+                Console.WriteLine(
+                    $"Phone   : {phoneNumber}");
+
+                Console.WriteLine(
+                    $"Code    : {code}");
+
+
+
+                var otp =
+                    await _db.OtpCodes
+                    .FirstOrDefaultAsync(x =>
+                        x.TelegramChatId == chatId &&
+                        x.PhoneNumber == phoneNumber &&
+                        x.Code == code &&
+                        !x.IsUsed &&
+                        x.ExpiresAt > DateTime.UtcNow);
+
+
+
+                if (otp == null)
+                {
+                    Console.WriteLine(
+                        "OTP INVALID");
+
+                    return false;
+                }
+
+
+
+                otp.IsUsed = true;
+
+
+                await _db.SaveChangesAsync();
+
+
+
+                Console.WriteLine(
+                    "OTP VERIFIED");
+
+
+                return true;
+
             }
-
-            var otp = await _db.OtpCodes
-                .FirstOrDefaultAsync(x =>
-                    x.TelegramChatId == chatId &&
-                    x.Code == code &&
-                    !x.IsUsed &&
-                    x.ExpiresAt > DateTime.UtcNow);
-
-            if (otp == null)
+            catch (Exception ex)
             {
-                Console.WriteLine("OTP NOT FOUND");
+                Console.WriteLine(ex.ToString());
+
                 return false;
             }
-
-            Console.WriteLine("OTP VERIFIED");
-
-            otp.IsUsed = true;
-            await _db.SaveChangesAsync();
-
-            return true;
-        }
-        // -------------------------------------------------
-        // SIMPLE MESSAGE SENDER
-        // -------------------------------------------------
-        public async Task<bool> SendCustomMessageAsync(long chatId, string text)
-        {
-            return await SendTelegramMessageAsync(chatId, text);
         }
 
-        // -------------------------------------------------
-        // INTERNAL TELEGRAM API CALL
-        // -------------------------------------------------
-        private async Task<bool> SendTelegramMessageAsync(long chatId, string text)
+
+
+
+
+        // =====================================================
+        // SEND CUSTOM TELEGRAM MESSAGE
+        // =====================================================
+
+        public async Task<bool> SendCustomMessageAsync(
+            long chatId,
+            string text)
         {
-            var botToken = _config["Telegram:BotToken"];
+            return await SendTelegramMessageAsync(
+                chatId,
+                text);
+        }
 
-            if (string.IsNullOrWhiteSpace(botToken))
-                return false;
 
-            var url = $"https://api.telegram.org/bot{botToken}/sendMessage";
 
-            using var client = new HttpClient();
 
-            var payload = new
+
+        // =====================================================
+        // TELEGRAM API CALL
+        // =====================================================
+
+        private async Task<bool> SendTelegramMessageAsync(
+            long chatId,
+            string text)
+        {
+            try
             {
-                chat_id = chatId,
-                text = text
-            };
+                var botToken =
+                    _config["Telegram:BotToken"];
 
-            var json = JsonSerializer.Serialize(payload);
 
-            var response = await client.PostAsync(
-                url,
-                new StringContent(json, Encoding.UTF8, "application/json"));
 
-            return response.IsSuccessStatusCode;
+                if (string.IsNullOrWhiteSpace(botToken))
+                {
+                    Console.WriteLine(
+                        "Telegram Bot Token missing");
+
+                    return false;
+                }
+
+
+
+                var url =
+                    $"https://api.telegram.org/bot{botToken}/sendMessage";
+
+
+
+                using var client =
+                    new HttpClient();
+
+
+
+                var payload =
+                    new
+                    {
+                        chat_id = chatId,
+
+                        text = text
+                    };
+
+
+
+                var json =
+                    JsonSerializer.Serialize(payload);
+
+
+
+                var response =
+                    await client.PostAsync(
+                        url,
+                        new StringContent(
+                            json,
+                            Encoding.UTF8,
+                            "application/json"));
+
+
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error =
+                        await response.Content
+                        .ReadAsStringAsync();
+
+
+                    Console.WriteLine(
+                        $"Telegram Error: {error}");
+                }
+
+
+
+                return response.IsSuccessStatusCode;
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+
+                return false;
+            }
         }
     }
 }

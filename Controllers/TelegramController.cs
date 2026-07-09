@@ -26,7 +26,6 @@ namespace TwoDPro3.Controllers
 
         // =====================================================
         // TELEGRAM WEBHOOK
-        // Receives /start PHONE_NUMBER
         // =====================================================
 
         [HttpPost("webhook")]
@@ -45,58 +44,93 @@ namespace TwoDPro3.Controllers
                 }
 
 
-                if (!message.Text.StartsWith("/start"))
+                long chatId = message.Chat.Id;
+
+                string text = message.Text.Trim();
+
+
+
+                // =================================================
+                // 1. START COMMAND
+                // =================================================
+
+                if (text == "/start")
                 {
+                    await _otpService.SendCustomMessageAsync(
+                        chatId,
+                        "User name နဲ့ Ph Number ရိုက်ပေးပါ။\n" +
+                        "စာရင်းသွင်းထားသည်နှင့် တူရပါမည်။\n" +
+                        "တစ်ကြောင်းစီ ရိုက်ပေးပါ။");
+
+
                     return Ok();
                 }
 
 
-                var parts =
-                    message.Text.Split(' ');
 
 
-                if (parts.Length < 2)
+                // =================================================
+                // 2. RECEIVE USERNAME + PHONE
+                // =================================================
+
+                var lines =
+                    text.Split(
+                        '\n',
+                        StringSplitOptions.RemoveEmptyEntries);
+
+
+
+                if (lines.Length < 2)
                 {
+                    await _otpService.SendCustomMessageAsync(
+                        chatId,
+                        "User name နဲ့ Ph Number ကို တစ်ကြောင်းစီ ရိုက်ပေးပါ။");
+
                     return Ok();
                 }
 
 
 
-                // MAUI sends phone number
+                string userName =
+                    lines[0].Trim();
+
+
                 string phoneNumber =
-                    parts[1].Trim();
-
-
-                long chatId =
-                    message.Chat.Id;
+                    lines[1].Trim();
 
 
 
                 Console.WriteLine(
-                    $"PHONE = {phoneNumber}");
+                    "========== TELEGRAM REGISTER ==========");
 
                 Console.WriteLine(
-                    $"CHAT ID = {chatId}");
+                    $"UserName : {userName}");
+
+                Console.WriteLine(
+                    $"Phone    : {phoneNumber}");
+
+                Console.WriteLine(
+                    $"ChatId   : {chatId}");
 
 
 
-                // =====================================================
-                // 1. CHECK TELEGRAM CHAT ALREADY REGISTERED
-                // =====================================================
 
-                var alreadyLinked =
+                // =================================================
+                // 3. CHECK TELEGRAM ALREADY LINKED
+                // =================================================
+
+                bool telegramExists =
                     await _db.UserTelegramLinks
                     .AnyAsync(x =>
                         x.TelegramChatId == chatId);
 
 
 
-                if (alreadyLinked)
+                if (telegramExists)
                 {
-                    await _otpService
-                        .SendCustomMessageAsync(
-                            chatId,
-                            "စာရင်းသွင်းပြီးသားဖြစ်ပါသည်။");
+                    await _otpService.SendCustomMessageAsync(
+                        chatId,
+                        "စာရင်းသွင်းပြီးသား ရှိပါသည်။");
 
                     return Ok();
                 }
@@ -104,49 +138,24 @@ namespace TwoDPro3.Controllers
 
 
 
-                // =====================================================
-                // 2. FIND PENDING REGISTRATION
-                // =====================================================
 
-                var pending =
-                    await _db.PendingRegistrations
-                    .FirstOrDefaultAsync(x =>
-                        x.PhoneNumber == phoneNumber &&
-                        !x.IsCompleted &&
-                        x.ExpiresAt > DateTime.UtcNow);
+                // =================================================
+                // 4. CHECK USERNAME DUPLICATE
+                // =================================================
 
-
-
-                if (pending == null)
-                {
-                    await _otpService
-                        .SendCustomMessageAsync(
-                            chatId,
-                            "စာရင်းသွင်းရန် အချက်အလက်မတွေ့ပါ သို့မဟုတ် သက်တမ်းကုန်သွားပါပြီ။");
-
-                    return Ok();
-                }
-
-
-
-
-                // =====================================================
-                // 3. CHECK PHONE ALREADY LINKED
-                // =====================================================
-
-                var phoneLinked =
-                    await _db.UserTelegramLinks
+                bool userNameExists =
+                    await _db.Users
                     .AnyAsync(x =>
-                        x.PhoneNumber == phoneNumber);
+                        x.UserName == userName);
 
 
 
-                if (phoneLinked)
+                if (userNameExists)
                 {
-                    await _otpService
-                        .SendCustomMessageAsync(
-                            chatId,
-                            "ဤဖုန်းနံပါတ်ကို Telegram ဖြင့် စာရင်းသွင်းပြီးသားဖြစ်ပါသည်။");
+                    await _otpService.SendCustomMessageAsync(
+                        chatId,
+                        "တူညီသည့် User Name ရှိနေပါသည်။\n" +
+                        "နောက်တစ်မျိုး ပြောင်းပေးပါ။");
 
                     return Ok();
                 }
@@ -154,9 +163,10 @@ namespace TwoDPro3.Controllers
 
 
 
-                // =====================================================
-                // 4. SAVE TELEGRAM LINK
-                // =====================================================
+
+                // =================================================
+                // 5. CREATE TELEGRAM LINK
+                // =================================================
 
                 var link =
                     new UserTelegramLink
@@ -165,7 +175,8 @@ namespace TwoDPro3.Controllers
 
                         TelegramChatId = chatId,
 
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt =
+                            DateTime.UtcNow
                     };
 
 
@@ -177,33 +188,42 @@ namespace TwoDPro3.Controllers
 
 
 
-                // =====================================================
-                // 5. SEND OTP
-                // =====================================================
 
-                var otpSent =
-                    await _otpService
-                    .SendOtpAsync(chatId);
+                // =================================================
+                // 6. GENERATE AND SEND OTP
+                // =================================================
+
+                bool sent =
+                    await _otpService.SendOtpAsync(
+                        chatId,
+                        phoneNumber);
 
 
 
-                if (!otpSent)
+                if (!sent)
                 {
-                    await _otpService
-                        .SendCustomMessageAsync(
-                            chatId,
-                            "OTP ပို့၍မရပါ။");
+                    // remove link if OTP failed
+
+                    _db.UserTelegramLinks.Remove(link);
+
+                    await _db.SaveChangesAsync();
+
+
+                    await _otpService.SendCustomMessageAsync(
+                        chatId,
+                        "OTP ပို့၍မရပါ။");
+
 
                     return Ok();
                 }
 
 
 
-                await _otpService
-                    .SendCustomMessageAsync(
-                        chatId,
-                        "OTP ကို Telegram မှာ ပို့ပေးထားပါတယ်။");
 
+
+                await _otpService.SendCustomMessageAsync(
+                    chatId,
+                    "OTP ကို Telegram မှာ ပို့ပေးထားပါတယ်။");
 
 
                 return Ok();
@@ -217,6 +237,7 @@ namespace TwoDPro3.Controllers
             }
         }
     }
+
 
 
 
