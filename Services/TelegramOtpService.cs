@@ -57,6 +57,21 @@ namespace TwoDPro3.Services
         // -------------------------------------------------
         public async Task<bool> VerifyOtpAsync(long chatId, string code)
         {
+            Console.WriteLine("========== VERIFY OTP ==========");
+            Console.WriteLine($"ChatId : {chatId}");
+            Console.WriteLine($"Code   : {code}");
+
+            var all = await _db.OtpCodes
+                .Where(x => x.TelegramChatId == chatId)
+                .ToListAsync();
+
+            Console.WriteLine($"Found {all.Count} OTP(s)");
+
+            foreach (var x in all)
+            {
+                Console.WriteLine($"DB Code={x.Code}, Used={x.IsUsed}, Expire={x.ExpiresAt}");
+            }
+
             var otp = await _db.OtpCodes
                 .FirstOrDefaultAsync(x =>
                     x.TelegramChatId == chatId &&
@@ -65,14 +80,18 @@ namespace TwoDPro3.Services
                     x.ExpiresAt > DateTime.UtcNow);
 
             if (otp == null)
+            {
+                Console.WriteLine("OTP NOT FOUND");
                 return false;
+            }
+
+            Console.WriteLine("OTP VERIFIED");
 
             otp.IsUsed = true;
             await _db.SaveChangesAsync();
 
             return true;
         }
-
         // -------------------------------------------------
         // SIMPLE MESSAGE SENDER
         // -------------------------------------------------
