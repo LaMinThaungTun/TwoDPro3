@@ -120,11 +120,10 @@ namespace TwoDPro3.Controllers
                 // =================================================
 
                 bool telegramExists =
-                    await _db.UserTelegramLinks
-                    .AnyAsync(x =>
-                        x.TelegramChatId == chatId);
-
-
+                        await _db.UserTelegramLinks
+                        .AnyAsync(x =>
+                            x.TelegramChatId == chatId &&
+                            x.IsUsed);
 
                 if (telegramExists)
                 {
@@ -165,23 +164,33 @@ namespace TwoDPro3.Controllers
 
 
                 // =================================================
-                // 5. CREATE TELEGRAM LINK
+                // 5. CREATE OR UPDATE TELEGRAM LINK
                 // =================================================
 
                 var link =
-                    new UserTelegramLink
+                    await _db.UserTelegramLinks
+                    .FirstOrDefaultAsync(x =>
+                        x.TelegramChatId == chatId);
+
+                if (link == null)
+                {
+                    link = new UserTelegramLink
                     {
                         PhoneNumber = phoneNumber,
-
                         TelegramChatId = chatId,
-
-                        CreatedAt =
-                            DateTime.UtcNow
+                        IsUsed = false,
+                        CreatedAt = DateTime.UtcNow
                     };
 
-
-                _db.UserTelegramLinks.Add(link);
-
+                    _db.UserTelegramLinks.Add(link);
+                }
+                else
+                {
+                    // OTP မပြီးသေးတဲ့ Telegram Link ကို Update ပြန်လုပ်
+                    link.PhoneNumber = phoneNumber;
+                    link.IsUsed = false;
+                    link.CreatedAt = DateTime.UtcNow;
+                }
 
                 await _db.SaveChangesAsync();
 
@@ -202,17 +211,9 @@ namespace TwoDPro3.Controllers
 
                 if (!sent)
                 {
-                    // remove link if OTP failed
-
-                    _db.UserTelegramLinks.Remove(link);
-
-                    await _db.SaveChangesAsync();
-
-
                     await _otpService.SendCustomMessageAsync(
                         chatId,
                         "OTP ပို့၍မရပါ။");
-
 
                     return Ok();
                 }
@@ -221,9 +222,6 @@ namespace TwoDPro3.Controllers
 
 
 
-                await _otpService.SendCustomMessageAsync(
-                    chatId,
-                    "OTP ကို Telegram မှာ ပို့ပေးထားပါတယ်။");
 
 
                 return Ok();

@@ -21,5 +21,8 @@ namespace TwoDPro3.Models
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
+
+        [Column("is_used")]
+        public bool IsUsed { get; set; } = false;
     }
 }

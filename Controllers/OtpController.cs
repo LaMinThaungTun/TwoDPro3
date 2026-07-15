@@ -88,14 +88,15 @@ namespace TwoDPro3.Controllers
                 var telegramLink =
                     await _db.UserTelegramLinks
                     .FirstOrDefaultAsync(x =>
-                        x.PhoneNumber == phone);
+                        x.PhoneNumber == phone &&
+                        !x.IsUsed);
 
 
 
                 if (telegramLink == null)
                 {
                     return BadRequest(
-                        "Telegram account not linked");
+                        "Telegram link not found or already used");
                 }
 
 
@@ -250,7 +251,9 @@ namespace TwoDPro3.Controllers
 
                     await _db.SaveChangesAsync();
 
+                    telegramLink.IsUsed = true;
 
+                    await _db.SaveChangesAsync();
 
                     await transaction.CommitAsync();
 
